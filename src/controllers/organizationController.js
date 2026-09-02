@@ -18,7 +18,7 @@ class OrganizationController {
         search,
         tenantUuid: req.auth.tenantUuid,
       });
-      return res.status(200).json(organizations);
+      return res.status(200).json({organizations});
     } catch (error) {
       return next(error);
     }
