@@ -1,11 +1,18 @@
-// Business logic for the Facility entity (routes: /facilities). Not to be
-// confused with facilityServiceCatalogService.js, which handles the
-// separate "FacilityService" entity behind /facility-services.
-const { Organization, Facility } = require("../models");
+// Business logic for the ServiceCategory entity (routes: /service-categories).
+// Not to be confused with facilityServiceCatalogService.js, which handles
+// the separate "FacilityService" entity behind /facility-services.
+//
+// NOTE: the Sequelize model is imported as `ServiceCategoryModel` rather
+// than `ServiceCategory` — the class below is itself named `ServiceCategory`
+// and would otherwise shadow the model inside every method, which is
+// exactly the bug this fixes (every call below used to resolve
+// `ServiceCategory.findAndCountAll`/`findOne`/`create` against the class,
+// not the model, so every route on this resource threw at runtime).
+const { Organization, ServiceCategory: ServiceCategoryModel } = require("../models");
 const { toSequelizePage, buildEnvelope } = require("../utils/pagination");
 const { Op } = require("sequelize");
 
-function notFound(message = "Facility not found") {
+function notFound(message = "Service category not found") {
   const error = new Error(message);
   error.statusCode = 404;
   error.code = "SERVICE_CATEGORY_NOT_FOUND";
@@ -63,7 +70,7 @@ class ServiceCategory {
       ];
     }
 
-    const result = await ServiceCategory.findAndCountAll({
+    const result = await ServiceCategoryModel.findAndCountAll({
       where,
       limit: safeLimit,
       offset,
@@ -77,15 +84,15 @@ class ServiceCategory {
   }
 
   async getDropdownList({ tenantUuid }) {
-    const rows = await ServiceCategory.findAll({
+    const rows = await ServiceCategoryModel.findAll({
       where: { tenant_uuid: tenantUuid, status: "ACTIVE" },
-      order: [["facilityName", "ASC"]],
+      order: [["serviceCategoryName", "ASC"]],
     });
     return { success: true, count: rows.length, data: rows.map(toResponse) };
   }
 
   async getById(serviceCategoryId, { tenantUuid }) {
-    const serviceCategory = await ServiceCategory.findOne({
+    const serviceCategory = await ServiceCategoryModel.findOne({
       where: {
         service_category_id: serviceCategoryId,
         tenant_uuid: tenantUuid,
@@ -98,15 +105,14 @@ class ServiceCategory {
   async create(payload, { tenantUuid, userId }) {
     await assertOrganizationExists(payload.organizationId, tenantUuid);
 
-    const serviceCategory = await ServiceCategory.create({
+    const serviceCategory = await ServiceCategoryModel.create({
       tenantUuid,
-      serviceCategoryId: payload.serviceCategoryId,
-      serviceCategoryUuid: payload.serviceCategoryUuid,
       organizationId: payload.organizationId,
-      serviceCategoryCode: payload.serviceCategoryCode,
+      // Auto-generated, same pattern as Organization.generateCode — the
+      // column is NOT NULL and nothing in the create request supplies it.
+      serviceCategoryCode: ServiceCategoryModel.generateCode(payload.serviceCategoryName),
       serviceCategoryName: payload.serviceCategoryName,
       description: payload.description,
-      status: payload.status,
       status: "ACTIVE",
       createdBy: userId || null,
       modifiedBy: userId || null,
@@ -116,7 +122,7 @@ class ServiceCategory {
   }
 
   async update(serviceCategoryId, patch, { tenantUuid, userId }) {
-    const serviceCategory = await ServiceCategory.findOne({
+    const serviceCategory = await ServiceCategoryModel.findOne({
       where: { service_category_id: serviceCategoryId, tenant_uuid: tenantUuid },
     });
     if (!serviceCategory) throw notFound();
@@ -134,7 +140,7 @@ class ServiceCategory {
   }
 
   async updateStatus(serviceCategoryId, status, { tenantUuid, userId }) {
-    const serviceCategory = await ServiceCategory.findOne({
+    const serviceCategory = await ServiceCategoryModel.findOne({
       where: { service_category_id: serviceCategoryId, tenant_uuid: tenantUuid },
     });
     if (!serviceCategory) throw notFound();
