@@ -1,14 +1,14 @@
-// Business logic for the ServiceCategory entity (routes: /service-categories).
+// Business logic for the Service entity (routes: /service-categories).
 // Not to be confused with facilityServiceCatalogService.js, which handles
 // the separate "FacilityService" entity behind /facility-services.
 //
-// NOTE: the Sequelize model is imported as `ServiceCategoryModel` rather
-// than `ServiceCategory` — the class below is itself named `ServiceCategory`
+// NOTE: the Sequelize model is imported as `ServiceModel` rather
+// than `Service` — the class below is itself named `Service`
 // and would otherwise shadow the model inside every method, which is
 // exactly the bug this fixes (every call below used to resolve
-// `ServiceCategory.findAndCountAll`/`findOne`/`create` against the class,
+// `Service.findAndCountAll`/`findOne`/`create` against the class,
 // not the model, so every route on this resource threw at runtime).
-const { Organization, ServiceCategory: ServiceCategoryModel } = require("../models");
+const { Organization, Service: ServiceModel } = require("../models");
 const { toSequelizePage, buildEnvelope } = require("../utils/pagination");
 const UuidUtil = require("../utils/uuid.util");
 const CodeUtil = require("../utils/code.util");
@@ -35,18 +35,18 @@ async function assertOrganizationExists(organizationId, tenantUuid) {
   }
 }
 
-function toResponse(serviceCategory) {
-  if (!serviceCategory) return null;
-  const plain = serviceCategory.get
-    ? serviceCategory.get({ plain: true })
-    : serviceCategory;
+function toResponse(service) {
+  if (!service) return null;
+  const plain = service.get
+    ? service.get({ plain: true })
+    : service;
   return {
-    serviceCategoryId: plain.serviceCategoryId,
-    serviceCategoryUuid: plain.serviceCategoryUuid,
+    serviceId: plain.serviceId,
+    serviceUuid: plain.serviceUuid,
     tenantUuid: plain.tenantUuid,
     organizationId: plain.organizationId,
-    serviceCategoryCode: plain.serviceCategoryCode,
-    serviceCategoryName: plain.serviceCategoryName,
+    serviceCode: plain.serviceCode,
+    serviceName: plain.serviceName,
     description: plain.description,
     status: plain.status,
     createdOn: plain.createdOn,
@@ -54,7 +54,7 @@ function toResponse(serviceCategory) {
   };
 }
 
-class ServiceCategory {
+class Service {
   async getList({ page, limit, search, status, organizationId, tenantUuid }) {
     const {
       limit: safeLimit,
@@ -67,12 +67,12 @@ class ServiceCategory {
     if (organizationId) where.organization_id = organizationId;
     if (search) {
       where[Op.or] = [
-        { service_category_name: { [Op.like]: `%${search}%` } },
+        { service_name: { [Op.like]: `%${search}%` } },
         { city: { [Op.like]: `%${search}%` } },
       ];
     }
 
-    const result = await ServiceCategoryModel.findAndCountAll({
+    const result = await ServiceModel.findAndCountAll({
       where,
       limit: safeLimit,
       offset,
@@ -86,75 +86,75 @@ class ServiceCategory {
   }
 
   async getDropdownList({ tenantUuid }) {
-    const rows = await ServiceCategoryModel.findAll({
+    const rows = await ServiceModel.findAll({
       where: { tenant_uuid: tenantUuid, status: "ACTIVE" },
-      order: [["serviceCategoryName", "ASC"]],
+      order: [["serviceName", "ASC"]],
     });
     return { success: true, count: rows.length, data: rows.map(toResponse) };
   }
 
-  async getById(serviceCategoryId, { tenantUuid }) {
-    const serviceCategory = await ServiceCategoryModel.findOne({
+  async getById(serviceId, { tenantUuid }) {
+    const service = await ServiceModel.findOne({
       where: {
-        service_category_id: serviceCategoryId,
+        service_id: serviceId,
         tenant_uuid: tenantUuid,
       },
     });
-    if (!serviceCategory) throw notFound();
-    return toResponse(serviceCategory);
+    if (!service) throw notFound();
+    return toResponse(service);
   }
 
   async create(payload, { tenantUuid, userId }) {
     await assertOrganizationExists(payload.organizationId, tenantUuid);
 
-    const serviceCategory = await ServiceCategoryModel.create({
+    const service = await ServiceModel.create({
       tenantUuid,
       organizationId: payload.organizationId,
       // Auto-generated, same pattern as Organization.generateCode — the
       // column is NOT NULL and nothing in the create request supplies it.
-      serviceCategoryUuid: UuidUtil.generate(),
-      serviceCategoryCode: CodeUtil.generateCode("SRVCAT",payload.serviceCategoryName),
-      serviceCategoryName: payload.serviceCategoryName,
+      serviceUuid: UuidUtil.generate(),
+      serviceCode: CodeUtil.generateCode("SVR",payload.serviceName),
+      serviceName: payload.serviceName,
       description: payload.description,
       status: "ACTIVE",
       createdBy: userId || null,
       modifiedBy: userId || null,
     });
 
-    return toResponse(serviceCategory);
+    return toResponse(service);
   }
 
-  async update(serviceCategoryId, patch, { tenantUuid, userId }) {
-    const serviceCategory = await ServiceCategoryModel.findOne({
-      where: { service_category_id: serviceCategoryId, tenant_uuid: tenantUuid },
+  async update(serviceId, patch, { tenantUuid, userId }) {
+    const service = await ServiceModel.findOne({
+      where: { service_id: serviceId, tenant_uuid: tenantUuid },
     });
-    if (!serviceCategory) throw notFound();
+    if (!service) throw notFound();
 
     if (patch.organizationId !== undefined) {
       await assertOrganizationExists(patch.organizationId, tenantUuid);
     }
-console.log("Patch ==> ", patch);
-    await serviceCategory.update({
+
+    await service.update({
       ...patch,
       modifiedBy: userId || null,
       modifiedOn: new Date(),
     });
-    return toResponse(serviceCategory);
+    return toResponse(service);
   }
 
-  async updateStatus(serviceCategoryId, status, { tenantUuid, userId }) {
-    const serviceCategory = await ServiceCategoryModel.findOne({
-      where: { service_category_id: serviceCategoryId, tenant_uuid: tenantUuid },
+  async updateStatus(serviceId, status, { tenantUuid, userId }) {
+    const service = await ServiceModel.findOne({
+      where: { service_id: serviceId, tenant_uuid: tenantUuid },
     });
-    if (!serviceCategory) throw notFound();
+    if (!service) throw notFound();
 
-    await serviceCategory.update({
+    await service.update({
       status,
       modifiedBy: userId || null,
       modifiedOn: new Date(),
     });
-    return toResponse(serviceCategory);
+    return toResponse(service);
   }
 }
 
-module.exports = new ServiceCategory();
+module.exports = new Service();

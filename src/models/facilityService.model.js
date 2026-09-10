@@ -20,6 +20,7 @@ module.exports = (sequelize, DataTypes) => {
       // Optional: a service can be offered facility-wide without a specific
       // owning department (see facility-services.component.ts's `|| null`).
       departmentId: { type: DataTypes.BIGINT, allowNull: true, field: 'department_id' },
+      serviceCategoryId: { type: DataTypes.BIGINT, allowNull: false, field: 'service_category_id' },
       serviceId: { type: DataTypes.BIGINT, allowNull: true, field: 'service_id' },
       status: { type: DataTypes.STRING(30), allowNull: false, defaultValue: 'ACTIVE', field: 'status' },
       createdBy: { type: DataTypes.BIGINT, allowNull: true, field: 'created_by' },

@@ -16,7 +16,6 @@ module.exports = (sequelize, DataTypes) => {
         field: 'service_uuid',
       },
       tenantUuid: { type: DataTypes.UUID, allowNull: false, field: 'tenant_uuid' },
-      serviceCategoryId: { type: DataTypes.BIGINT, allowNull: false, field: 'service_category_id' },
       organizationId: { type: DataTypes.BIGINT, allowNull: false, field: 'organization_id' },
       // Optional: a service can be offered facility-wide without a specific
       // owning department (see facility-services.component.ts's `|| null`).
@@ -33,7 +32,7 @@ module.exports = (sequelize, DataTypes) => {
       tableName: 'services',
       freezeTableName: true,
       timestamps: false,
-      indexes: [{ fields: ['tenant_uuid'] }, { fields: ['service_category_id'] }, { fields: ['organization_id'] }],
+      indexes: [{ fields: ['tenant_uuid'] }, { fields: ['organization_id'] }],
     },
   );
 

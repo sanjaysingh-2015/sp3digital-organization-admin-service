@@ -24,15 +24,15 @@ const listQuerySchema = paginationQuerySchema({
 const createSchema = Joi.object({
   facilityId: Joi.number().integer().positive().required(),
   departmentId: Joi.number().integer().positive().allow(null).optional(),
-  serviceName: Joi.string().trim().min(2).max(200).required(),
-  serviceCategory: Joi.string().valid(...SERVICE_CATEGORIES).allow(null).optional(),
+  serviceId: Joi.number().integer().positive().allow(null).optional(),
+  serviceCategoryId: Joi.number().integer().positive().allow(null).optional(),
 });
 
 const updateSchema = Joi.object({
   facilityId: Joi.number().integer().positive().optional(),
   departmentId: Joi.number().integer().positive().allow(null).optional(),
-  serviceName: Joi.string().trim().min(2).max(200).optional(),
-  serviceCategory: Joi.string().valid(...SERVICE_CATEGORIES).allow(null).optional(),
+  serviceId: Joi.number().integer().positive().allow(null).optional(),
+  serviceCategoryId: Joi.number().integer().positive().allow(null).optional(),
 }).min(1);
 
 const statusSchema = Joi.object({

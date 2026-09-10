@@ -51,8 +51,8 @@ function toResponse(facilityServiceRow) {
     tenantUuid: plain.tenantUuid,
     facilityId: plain.facilityId,
     departmentId: plain.departmentId,
-    serviceName: plain.serviceName,
-    serviceCategory: plain.serviceCategory,
+    serviceId: plain.serviceId,
+    serviceCategoryId: plain.serviceCategoryId,
     status: plain.status,
     createdOn: plain.createdOn,
     modifiedOn: plain.modifiedOn,
@@ -60,13 +60,13 @@ function toResponse(facilityServiceRow) {
 }
 
 class FacilityServiceCatalogService {
-  async getList({ page, limit, search, status, facilityId, serviceCategory, tenantUuid }) {
+  async getList({ page, limit, search, status, facilityId, tenantUuid }) {
     const { limit: safeLimit, offset, page: safePage } = toSequelizePage({ page, limit });
 
     const where = { tenant_uuid: tenantUuid };
     if (status) where.status = status;
     if (facilityId) where.facility_id = facilityId;
-    if (serviceCategory) where.service_category = serviceCategory;
+    //if (serviceCategory) where.service_category = serviceCategory;
     if (search) where.service_name = { [Op.like]: `%${search}%` };
 
     const result = await FacilityService.findAndCountAll({
@@ -91,17 +91,19 @@ class FacilityServiceCatalogService {
   }
 
   async create(payload, { tenantUuid, userId }) {
+    console.log("Payload ==> ", payload);
+    console.log("tenantUuid ==> ", tenantUuid);
+    console.log("userId ==> ", userId);
     await assertFacilityExists(payload.facilityId, tenantUuid);
     await assertDepartmentBelongsToFacility(payload.departmentId, payload.facilityId, tenantUuid);
 
     const row = await FacilityService.create({
       tenantUuid,
+      facilityServiceUuid: UuidUtils.generate(),
       facilityId: payload.facilityId,
       departmentId: payload.departmentId || null,
-      serviceName: payload.serviceName,
-      serviceCode: CodeUtil.generateCode("SRV","serviceName"),
-      serviceUuid: UuidUtils.generate(),
-      serviceCategory: payload.serviceCategory || null,
+      serviceId: payload.serviceId,
+      serviceCategoryId: payload.serviceCategoryId,
       status: 'ACTIVE',
       createdBy: userId || null,
       modifiedBy: userId || null,

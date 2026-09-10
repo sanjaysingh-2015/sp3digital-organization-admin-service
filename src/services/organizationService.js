@@ -1,5 +1,7 @@
 const { Organization } = require('../models');
 const { toSequelizePage, buildEnvelope } = require('../utils/pagination');
+const UuidUtil = require("../utils/uuid.util");
+const CodeUtil = require("../utils/code.util");
 const { Op } = require('sequelize');
 
 function notFound(message = 'Organization not found') {
@@ -82,7 +84,8 @@ class OrganizationService {
     const organization = await Organization.create({
       tenantUuid,
       organizationName,
-      organizationCode: Organization.generateCode(organizationName),
+      organizationCode: CodeUtil.generateCode("ORG",organizationName),
+      organizationUuid: UuidUtil.generate(),
       organizationType: organizationType || null,
       parentOrganizationId: parentOrganizationId || null,
       status: 'ACTIVE',
