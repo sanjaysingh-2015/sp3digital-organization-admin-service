@@ -24,8 +24,8 @@ FacilityService.belongsTo(Facility, { foreignKey: 'facilityId' });
 Department.hasMany(FacilityService, { foreignKey: 'departmentId' });
 FacilityService.belongsTo(Department, { foreignKey: 'departmentId' });
 
-ServiceCategory.hasMany(Service, { foreignKey: 'serviceId' });
-Service.belongsTo(ServiceCategory, { foreignKey: "serviceCategoryId"});
+ServiceCategory.hasMany(FacilityService, { foreignKey: 'serviceCategoryId' });
+FacilityService.belongsTo(ServiceCategory, { foreignKey: "serviceCategoryId"});
 
 Service.hasMany(FacilityService, { foreignKey: 'departmentId' })
 FacilityService.belongsTo(Service, { foreignKey: 'serviceId' });
