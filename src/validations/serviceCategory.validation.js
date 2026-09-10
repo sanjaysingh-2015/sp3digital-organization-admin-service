@@ -7,15 +7,23 @@ const STATUSES = ['ACTIVE', 'INACTIVE', 'DISABLED', 'DELETED'];
 const listQuerySchema = paginationQuerySchema({
   search: Joi.string().max(200).allow('').optional(),
   status: Joi.string().valid(...STATUSES, '').optional(),
+  // Controller/service already read+filter on this — it was missing here,
+  // so `validate()`'s stripUnknown silently dropped it from every request.
+  organizationId: Joi.number().integer().positive().allow('').optional(),
 });
 
 const createSchema = Joi.object({
+  // Required: serviceCategoryService.create() calls assertOrganizationExists()
+  // unconditionally, so a create request with no organizationId always
+  // 404s. Same field name/shape as facility.validation.js's parent id.
+  organizationId: Joi.number().integer().positive().required(),
   serviceCategoryName: Joi.string().trim().min(2).max(200).required(),
   description: Joi.string().trim().max(500).optional(),
 });
 
 const updateSchema = Joi.object({
-  serviceCategoryName: Joi.string().trim().min(2).max(200).required(),
+  organizationId: Joi.number().integer().positive().optional(),
+  serviceCategoryName: Joi.string().trim().min(2).max(200).optional(),
   description: Joi.string().trim().max(500).optional(),
 }).min(1);
 

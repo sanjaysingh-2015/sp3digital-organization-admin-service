@@ -1,3 +1,5 @@
+const { v4: uuidv4 } = require('uuid');
+
 module.exports = (sequelize, DataTypes) => {
   const ServiceCategory = sequelize.define(
     'ServiceCategory',
@@ -33,6 +35,17 @@ module.exports = (sequelize, DataTypes) => {
       indexes: [{ fields: ['tenant_uuid'] }, { fields: ['organization_id'] }],
     },
   );
+
+  // Same pattern as Organization.generateCode — auto-generated short code,
+  // since the column is NOT NULL and no route accepts it as input.
+  ServiceCategory.generateCode = function generateCode(serviceCategoryName) {
+    const slug = (serviceCategoryName || 'SVC')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 11) || 'SVC';
+    return `${slug}-${uuidv4().slice(0, 8).toUpperCase()}`;
+  };
 
   return ServiceCategory;
 };
