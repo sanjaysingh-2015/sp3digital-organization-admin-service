@@ -1,26 +1,25 @@
 module.exports = (sequelize, DataTypes) => {
-  const FacilityService = sequelize.define(
-    'FacilityService',
+  const ServiceCategory = sequelize.define(
+    'ServiceCategory',
     {
-      facilityServiceId: {
+      serviceCategoryId: {
         type: DataTypes.BIGINT,
         autoIncrement: true,
         primaryKey: true,
-        field: 'facility_service_id',
+        field: 'service_category_id',
       },
-      facilityServiceUuid: {
+      serviceCategoryUuid: {
         type: DataTypes.UUID,
         allowNull: false,
         unique: true,
         defaultValue: DataTypes.UUIDV4,
-        field: 'facility_service_uuid',
+        field: 'service_category_uuid',
       },
       tenantUuid: { type: DataTypes.UUID, allowNull: false, field: 'tenant_uuid' },
-      facilityId: { type: DataTypes.BIGINT, allowNull: false, field: 'facility_id' },
-      // Optional: a service can be offered facility-wide without a specific
-      // owning department (see facility-services.component.ts's `|| null`).
-      departmentId: { type: DataTypes.BIGINT, allowNull: true, field: 'department_id' },
-      serviceId: { type: DataTypes.BIGINT, allowNull: true, field: 'service_id' },
+      organizationId: { type: DataTypes.BIGINT, allowNull: false, field: 'organization_id' },
+      serviceCategoryCode: { type: DataTypes.STRING(20), allowNull: false, field: 'service_category_code' },
+      serviceCategoryName: { type: DataTypes.STRING(100), allowNull: false, field: 'service_category_name' },
+      description: { type: DataTypes.STRING(500), allowNull: false, field: 'description' },
       status: { type: DataTypes.STRING(30), allowNull: false, defaultValue: 'ACTIVE', field: 'status' },
       createdBy: { type: DataTypes.BIGINT, allowNull: true, field: 'created_by' },
       createdOn: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_on' },
@@ -28,12 +27,12 @@ module.exports = (sequelize, DataTypes) => {
       modifiedOn: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'modified_on' },
     },
     {
-      tableName: 'facility_services',
+      tableName: 'service_categories',
       freezeTableName: true,
       timestamps: false,
-      indexes: [{ fields: ['tenant_uuid'] }, { fields: ['facility_id'] }, { fields: ['department_id'] }, { fields: ['service_id'] }],
+      indexes: [{ fields: ['tenant_uuid'] }, { fields: ['organization_id'] }],
     },
   );
 
-  return FacilityService;
+  return ServiceCategory;
 };

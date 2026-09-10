@@ -5,6 +5,8 @@ const Organization = require('./organization.model')(sequelize, DataTypes);
 const Facility = require('./facility.model')(sequelize, DataTypes);
 const Department = require('./department.model')(sequelize, DataTypes);
 const FacilityService = require('./facilityService.model')(sequelize, DataTypes);
+const ServiceCategory = require('./serviceCategory.model')(sequelize, DataTypes);
+const Service = require('./service.model')(sequelize, DataTypes);
 
 // --- Associations ---
 Organization.hasMany(Organization, { as: 'children', foreignKey: 'parentOrganizationId' });
@@ -22,10 +24,18 @@ FacilityService.belongsTo(Facility, { foreignKey: 'facilityId' });
 Department.hasMany(FacilityService, { foreignKey: 'departmentId' });
 FacilityService.belongsTo(Department, { foreignKey: 'departmentId' });
 
+ServiceCategory.hasMany(Service, { foreignKey: 'serviceId' });
+Service.belongsTo(ServiceCategory, { foreignKey: "serviceCategoryId"});
+
+Service.hasMany(FacilityService, { foreignKey: 'departmentId' })
+FacilityService.belongsTo(Service, { foreignKey: 'serviceId' });
+
 module.exports = {
   sequelize,
   Organization,
   Facility,
   Department,
   FacilityService,
+  ServiceCategory,
+  Service
 };

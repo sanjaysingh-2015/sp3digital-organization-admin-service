@@ -4,6 +4,9 @@
 const { Facility, Department, FacilityService } = require('../models');
 const { toSequelizePage, buildEnvelope } = require('../utils/pagination');
 const { Op } = require('sequelize');
+const UuidUtil = require("../utils/uuid.util");
+const CodeUtil = require("../utils/code.util");
+const UuidUtils = require('../utils/uuid.util');
 
 function notFound(message = 'Facility service not found') {
   const error = new Error(message);
@@ -96,6 +99,8 @@ class FacilityServiceCatalogService {
       facilityId: payload.facilityId,
       departmentId: payload.departmentId || null,
       serviceName: payload.serviceName,
+      serviceCode: CodeUtil.generateCode("SRV","serviceName"),
+      serviceUuid: UuidUtils.generate(),
       serviceCategory: payload.serviceCategory || null,
       status: 'ACTIVE',
       createdBy: userId || null,
