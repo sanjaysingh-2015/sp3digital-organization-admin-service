@@ -1,95 +1,85 @@
-const organizationService = require("../services/organizationService");
-
-const {
-  validateCreatePayload,
-  validateUpdatePayload,
-  validateStatusPayload,
-} = require("../validations/organization.validation");
+const organizationService = require('../services/organizationService');
 
 class OrganizationController {
-  getOrganizationList = async (req, res, next) => {
+  getList = async (req, res, next) => {
     try {
-      const { page, limit, status, organizationType, search } = req.query;
-      const organizations = await organizationService.getOrganizationList({
+      const { page, limit, search, status, organizationType } = req.query;
+      const result = await organizationService.getList({
         page,
         limit,
+        search,
         status,
         organizationType,
-        search,
         tenantUuid: req.auth.tenantUuid,
       });
-      return res.status(200).json({organizations});
+      return res.status(200).json(result);
     } catch (error) {
       return next(error);
     }
   };
 
-  // For dropdowns
-  getOrganizations = async (req, res) => {
+  // For dropdowns (parent-org picker, facilities' org picker).
+  getDropdownList = async (req, res, next) => {
     try {
-      const organizations = await organizationService.getOrganizations({
-        tenantUuid: req.auth.tenantUuid,
-      });
-      return res.status(200).json({
-        success: true,
-        count: organizations.length,
-        data: organizations,
-      });
+      const result = await organizationService.getDropdownList({ tenantUuid: req.auth.tenantUuid });
+      return res.status(200).json(result);
     } catch (error) {
-      return res.status(500).json({
-        success: false,
-        message: error.message || "Error fetching organizations",
-      });
+      return next(error);
     }
   };
 
-  getOrganizationById = async (req, res, next) => {
+  getById = async (req, res, next) => {
     try {
-      const organization = await organizationService.getOrganizationById(
-        req.params.organizationId,
-      );
+      const organization = await organizationService.getById(req.params.organizationId, {
+        tenantUuid: req.auth.tenantUuid,
+      });
       return res.status(200).json(organization);
     } catch (error) {
       return next(error);
     }
   };
 
-  createOrganization = async (req, res, next) => {
+  create = async (req, res, next) => {
     try {
-      console.log("Request Body ==> ", req.body);
-      const { organizationName, organizationType, tenantUuid, userId} = req.body;
-      validateCreatePayload(req.body);
-      const organization = await organizationService.createOrganization(
-        req.body,
-        req.auth?.userId || userId,
-        req.auth?.tenantUuid || tenantUuid,
-      );
+      const organization = await organizationService.create({
+        ...req.body,
+        tenantUuid: req.auth.tenantUuid,
+        userId: req.auth.userId,
+      });
       return res.status(201).json(organization);
     } catch (error) {
       return next(error);
     }
   };
 
-  updateOrganization = async (req, res, next) => {
+  /**
+   * POST /internal/organizations — identity-admin-service's
+   * registrationService.js only. tenantUuid and userId both come from the
+   * body here (this route requires authenticate + requireInternalService,
+   * which sets req.auth.tenantUuid from the X-Tenant-Uuid header, but the
+   * caller also sends it in the body — accept either, prefer the header).
+   */
+  internalCreate = async (req, res, next) => {
     try {
-      validateUpdatePayload(req.body);
-      const organization = await organizationService.updateOrganization(
-        req.params.organizationId,
-        req.body,
-        req.auth.userId,
-      );
-      return res.status(200).json(organization);
+      const organization = await organizationService.create({
+        organizationName: req.body.organizationName,
+        organizationType: req.body.organizationType,
+        parentOrganizationId: req.body.parentOrganizationId,
+        tenantUuid: req.auth.tenantUuid || req.body.tenantUuid,
+        userId: req.body.userId,
+      });
+      return res.status(201).json(organization);
     } catch (error) {
       return next(error);
     }
   };
 
-  deleteOrganization = async (req, res, next) => {
+  update = async (req, res, next) => {
     try {
-      const organization = await organizationService.deleteOrganization(
-        req.params.organizationId,
-        req.auth.userId,
-      );
+      const organization = await organizationService.update(req.params.organizationId, req.body, {
+        tenantUuid: req.auth.tenantUuid,
+        userId: req.auth.userId,
+      });
       return res.status(200).json(organization);
     } catch (error) {
       return next(error);
@@ -98,13 +88,23 @@ class OrganizationController {
 
   updateStatus = async (req, res, next) => {
     try {
-      validateStatusPayload(req.body);
-      const organization = await organizationService.updateStatus(
-        req.params.organizationId,
-        req.body.status,
-        req.auth.userId,
-      );
+      const organization = await organizationService.updateStatus(req.params.organizationId, req.body.status, {
+        tenantUuid: req.auth.tenantUuid,
+        userId: req.auth.userId,
+      });
       return res.status(200).json(organization);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  /** Hard delete — see organizationService.hardDelete for who's allowed to call this and why. */
+  hardDelete = async (req, res, next) => {
+    try {
+      const result = await organizationService.hardDelete(req.params.organizationId, {
+        tenantUuid: req.auth.tenantUuid,
+      });
+      return res.status(200).json(result);
     } catch (error) {
       return next(error);
     }

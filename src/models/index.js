@@ -1,36 +1,31 @@
-const fs = require('fs');
-const path = require('path');
-const { Sequelize, DataTypes, Model } = require('sequelize');
+const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
 
-const db = {};
+const Organization = require('./organization.model')(sequelize, DataTypes);
+const Facility = require('./facility.model')(sequelize, DataTypes);
+const Department = require('./department.model')(sequelize, DataTypes);
+const FacilityService = require('./facilityService.model')(sequelize, DataTypes);
 
-// Load all .model.js files dynamically
-fs.readdirSync(__dirname).forEach((file) => {
-  if (file.endsWith('.model.js')) {
-    const modelModule = require(path.join(__dirname, file));
+// --- Associations ---
+Organization.hasMany(Organization, { as: 'children', foreignKey: 'parentOrganizationId' });
+Organization.belongsTo(Organization, { as: 'parent', foreignKey: 'parentOrganizationId' });
 
-    let model;
-    if (typeof modelModule === 'function' && modelModule.prototype instanceof Model) {
-      model = modelModule.init(modelModule.schema || {}, { sequelize });
-    } else if (typeof modelModule === 'function') {
-      model = modelModule(sequelize, DataTypes);
-    } else {
-      model = modelModule;
-    }
+Organization.hasMany(Facility, { foreignKey: 'organizationId' });
+Facility.belongsTo(Organization, { foreignKey: 'organizationId' });
 
-    if (model && model.name) {
-      db[model.name] = model;
-    }
-  }
-});
+Facility.hasMany(Department, { foreignKey: 'facilityId' });
+Department.belongsTo(Facility, { foreignKey: 'facilityId' });
 
-// Load associations after model registration
-if (fs.existsSync(path.join(__dirname, 'associations.js'))) {
-  require('./associations')(db);
-}
+Facility.hasMany(FacilityService, { foreignKey: 'facilityId' });
+FacilityService.belongsTo(Facility, { foreignKey: 'facilityId' });
 
-db.sequelize = sequelize;
-db.Sequelize = Sequelize;
+Department.hasMany(FacilityService, { foreignKey: 'departmentId' });
+FacilityService.belongsTo(Department, { foreignKey: 'departmentId' });
 
-module.exports = db;
+module.exports = {
+  sequelize,
+  Organization,
+  Facility,
+  Department,
+  FacilityService,
+};

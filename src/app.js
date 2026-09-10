@@ -1,175 +1,71 @@
-// const express = require('express');
-// const cors = require('cors');
-// const helmet = require('helmet');
-// const swaggerUi = require('swagger-ui-express');
-// const swaggerSpec = require('./config/swagger');
-// const db = require('./models'); // Imports index.js which loads all models & sequelize
-// const { authenticate, authorize } = require('./middleware/authentication');
-// const organizationController = require('./controllers/organizationController');
-
-// const app = express();
-
-// // ALLOWED_ORIGINS: comma-separated list, e.g.
-// //   ALLOWED_ORIGINS=https://admin.sp3digital.com,https://staging-admin.sp3digital.com
-// // Falls back to allowing all origins ONLY when unset, so local dev keeps working
-// // without extra setup — but every real environment must set this explicitly.
-// const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
-//   .split(',')
-//   .map((origin) => origin.trim())
-//   .filter(Boolean);
-
-// app.use(helmet());
-// app.use(cors(
-//   allowedOrigins.length
-//     ? {
-//         origin: allowedOrigins,
-//         credentials: true,
-//       }
-//     : undefined // no ALLOWED_ORIGINS set -> permissive default, dev-only
-// ));
-// app.use(express.json());
-
-// app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-// // Lightweight liveness probe, unauthenticated (useful for load balancers / k8s).
-// app.get('/healthz', (req, res) => res.status(200).json({ status: 'ok' }));
-// app.post('/api/v1/organization-admin/organizations', organizationController.createOrganization)
-// const authorizeOrgAdminRequest = (req, res, next) => {
-//   const permission = req.method === 'GET' || req.method === 'HEAD'
-//     ? 'organization-admin:read'
-//     : 'organization-admin:write';
-//   return authorize(permission)(req, res, next);
-// };
-
-// // Every route below requires a bearer token issued by identity-service, plus
-// // the appropriate organization-admin:read / organization-admin:write claim.
-// app.use('/api/v1/organization-admin', authenticate, authorizeOrgAdminRequest);
-
-// app.use('/api/v1/organization-admin/organizations', require('./routes/organizationRoutes'));
-// app.use('/api/v1/organization-admin/facilities', require('./routes/facilityRoutes'));
-// app.use('/api/v1/organization-admin/departments', require('./routes/departmentRoutes'));
-// app.use('/api/v1/organization-admin/facility-services', require('./routes/facilityServiceRoutes'));
-
-// app.use((req, res) => {
-//   res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Route not found' } });
-// });
-
-// app.use((error, req, res, next) => {
-//   if (res.headersSent) return next(error);
-
-//   if (error.isJoi) {
-//     return res.status(400).json({
-//       error: {
-//         code: 'VALIDATION_ERROR',
-//         message: 'Request validation failed',
-//         details: error.details.map((detail) => detail.message)
-//       }
-//     });
-//   }
-
-//   if (error.name === 'ValidationError' || error.name === 'ConflictError') {
-//     return res.status(error.statusCode || 400).json({
-//       error: {
-//         code: error.name === 'ConflictError' ? 'CONFLICT' : 'VALIDATION_ERROR',
-//         message: error.message,
-//         details: error.details || []
-//       }
-//     });
-//   }
-
-//   console.error(error);
-//   return res.status(error.statusCode || 500).json({
-//     error: {
-//       code: error.code || 'INTERNAL_ERROR',
-//       message: error.expose ? error.message : 'An unexpected error occurred'
-//     }
-//   });
-// });
-
-// const PORT = process.env.PORT || 3100;
-
-// // Initialize Database and Start App
-// async function startServer() {
-//   try {
-//     await db.sequelize.authenticate();
-//     console.log('MySQL Connection established successfully via Sequelize.');
-
-//     // Sync database models
-//     await db.sequelize.sync({ alter: false });
-//     console.log('Sequelize Models synchronized with Database.');
-
-//     app.listen(PORT, () => {
-//       console.log(`Server running on port ${PORT}`);
-//       console.log(`Swagger documentation available at http://localhost:${PORT}/docs`);
-//     });
-//   } catch (error) {
-//     console.error(error);
-//     console.error('Unable to connect to MySQL database:', error.message);
-//   }
-// }
-
-// startServer();
-
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./config/swagger');
-const db = require('./models'); // Imports index.js which loads all models & sequelize
-const { authenticate, authorizeOrgAdminRequest, authenticateInternalService } = require('./middleware/authentication');
-const organizationController = require('./controllers/organizationController');
+const rateLimit = require('express-rate-limit');
+
+const db = require('./models');
+const { authenticate } = require('./middleware/authentication');
+
+const organizationRoutes = require('./routes/organizationRoutes');
+const facilityRoutes = require('./routes/facilityRoutes');
+const departmentRoutes = require('./routes/departmentRoutes');
+const facilityServiceCatalogRoutes = require('./routes/facilityServiceCatalogRoutes');
+const internalRoutes = require('./routes/internalRoutes');
 
 const app = express();
 
 // ALLOWED_ORIGINS: comma-separated list, e.g.
-//   ALLOWED_ORIGINS=https://admin.sp3digital.com,https://staging-admin.sp3digital.com
-// Falls back to allowing all origins ONLY when unset, so local dev keeps working
-// without extra setup — but every real environment must set this explicitly.
+//   ALLOWED_ORIGINS=http://localhost:4200,https://org-admin.sp3digital.com
+// Falls back to allowing all origins ONLY when unset, so local dev keeps
+// working without extra setup — every real environment must set this.
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
 app.use(helmet());
-app.use(cors(
-  allowedOrigins.length
-    ? {
-        origin: allowedOrigins,
-        credentials: true,
-      }
-    : undefined // no ALLOWED_ORIGINS set -> permissive default, dev-only
-));
+app.use(
+  cors(
+    allowedOrigins.length
+      ? { origin: allowedOrigins, credentials: true }
+      : undefined, // no ALLOWED_ORIGINS set -> permissive default, dev-only
+  ),
+);
 app.use(express.json());
 
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-// Lightweight liveness probe, unauthenticated (useful for load balancers / k8s).
-app.get('/healthz', (req, res) => res.status(200).json({ status: 'ok' }));
-// Server-to-server only (e.g. identity-admin-service's self-registration
-// flow, creating the first organization for a brand-new tenant before any
-// user/JWT exists yet). Gated by a shared secret, NOT a user token — see
-// authenticateInternalService. Deliberately a different path from
-// POST /api/v1/organization-admin/organizations so it never shadows the
-// normal authenticated create-organization route below.
-app.post(
-  '/api/v1/organization-admin/internal/organizations',
-  authenticateInternalService,
-  organizationController.createOrganization,
-);
-
-// Every route below requires a bearer token issued by identity-service, plus
-// the appropriate resource-scoped ORGANIZATION-ADMIN:<RESOURCE>:<ACTION> claim.
-app.use('/api/v1/organization-admin', authenticate, authorizeOrgAdminRequest);
-
-app.use('/api/v1/organization-admin/organizations', require('./routes/organizationRoutes'));
-app.use('/api/v1/organization-admin/facilities', require('./routes/facilityRoutes'));
-app.use('/api/v1/organization-admin/departments', require('./routes/departmentRoutes'));
-app.use('/api/v1/organization-admin/facility-services', require('./routes/facilityServiceRoutes'));
-
-app.use((req, res) => {
-  res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Route not found' } });
+// General API rate limiting. Separate from identity-admin-service's
+// per-login limiter — there's no login endpoint here, but an
+// authenticated caller (or a leaked/compromised token) hammering list
+// endpoints is still worth capping.
+const apiRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
+const basePath = '/api/v1/organization-admin';
+
+app.get(`${basePath}/health`, (req, res) => res.status(200).json({ status: 'ok' }));
+
+// Every route past this point requires a valid bearer token — either a
+// real identity-admin-service-issued user JWT, or the shared
+// INTERNAL_SERVICE_TOKEN (see authentication.js). No public/unauthenticated
+// route exists in this service the way identity-admin-service has
+// /auth/login and /public/register-organization — there's nothing here
+// that needs to work before a user or the identity service is authenticated.
+app.use(basePath, apiRateLimiter, authenticate);
+
+app.use(`${basePath}/organizations`, organizationRoutes);
+app.use(`${basePath}/facilities`, facilityRoutes);
+app.use(`${basePath}/departments`, departmentRoutes);
+app.use(`${basePath}/facility-services`, facilityServiceCatalogRoutes);
+app.use(`${basePath}/internal`, internalRoutes);
+
+// Same error envelope shape as identity-admin-service, so
+// organization-admin-ui's error.message handling (see notificationModal
+// usage across its feature components) behaves identically either way.
 app.use((error, req, res, next) => {
   if (res.headersSent) return next(error);
 
@@ -178,50 +74,50 @@ app.use((error, req, res, next) => {
       error: {
         code: 'VALIDATION_ERROR',
         message: 'Request validation failed',
-        details: error.details.map((detail) => detail.message)
-      }
+        details: error.details.map((detail) => detail.message),
+      },
     });
   }
 
-  if (error.name === 'ValidationError' || error.name === 'ConflictError') {
-    return res.status(error.statusCode || 400).json({
-      error: {
-        code: error.name === 'ConflictError' ? 'CONFLICT' : 'VALIDATION_ERROR',
-        message: error.message,
-        details: error.details || []
-      }
-    });
+  // Only log unexpected (5xx) failures — expected 4xx rejections (bad
+  // input, missing auth, not-found, tenant mismatch) are normal traffic,
+  // not incidents, and logging every one of them buries real errors.
+  if (!error.statusCode || error.statusCode >= 500) {
+    console.error(error);
   }
-
-  console.error(error);
   return res.status(error.statusCode || 500).json({
     error: {
       code: error.code || 'INTERNAL_ERROR',
-      message: error.expose ? error.message : 'An unexpected error occurred'
-    }
+      message: error.expose ? error.message : 'An unexpected error occurred',
+    },
   });
 });
 
 const PORT = process.env.PORT || 3100;
 
-// Initialize Database and Start App
 async function startServer() {
   try {
     await db.sequelize.authenticate();
-    console.log('MySQL Connection established successfully via Sequelize.');
+    console.log('Database connection established successfully.');
 
-    // Sync database models
     await db.sequelize.sync({ alter: false });
-    console.log('Sequelize Models synchronized with Database.');
+    console.log('Sequelize models synchronized with database.');
 
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`Swagger documentation available at http://localhost:${PORT}/docs`);
+      console.log(`sp3digital-organization-admin-service running on port ${PORT}`);
     });
   } catch (error) {
-    console.error(error);
-    console.error('Unable to connect to MySQL database:', error.message);
+    console.error('Unable to start organization-admin-service:', error);
   }
 }
 
-startServer();
+// Only auto-start when run directly (`node src/app.js` / `npm start`).
+// When required from a test (`require('../src/app')`), the caller gets
+// the configured `app` instance without a live server or DB connection
+// being started as a side effect of `require` — same pattern as the
+// identity-admin-service app.js fix from Phase 0.
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = app;

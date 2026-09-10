@@ -6,6 +6,12 @@ const MAX_LIMIT = 100;
 /**
  * Joi schema for list-endpoint query strings. Individual routes can extend
  * this with entity-specific filters (status, search, organizationId, ...).
+ *
+ * Kept byte-for-byte in sync with identity-admin-service's version of this
+ * file on purpose: organization-admin-ui's list pages already assume the
+ * exact same { data, pagination: { page, limit, totalItems, totalPages } }
+ * envelope identity-admin-ui uses, so there's no reason for the two
+ * services to diverge here.
  */
 function paginationQuerySchema(extra = {}) {
   return Joi.object({
@@ -17,10 +23,6 @@ function paginationQuerySchema(extra = {}) {
   });
 }
 
-/**
- * Turns { page, limit } into Sequelize { limit, offset } and returns a
- * pagination envelope builder.
- */
 function toSequelizePage({ page = 1, limit = DEFAULT_LIMIT } = {}) {
   const safeLimit = Math.min(Number(limit) || DEFAULT_LIMIT, MAX_LIMIT);
   const safePage = Math.max(Number(page) || 1, 1);

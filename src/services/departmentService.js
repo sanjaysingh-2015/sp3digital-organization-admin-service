@@ -1,205 +1,124 @@
-const { Op } = require("sequelize");
-const { Departments, Facilities, sequelize } = require("../models");
-const { toSequelizePage, buildEnvelope } = require("../utils/pagination");
-const UuidUtil = require("../utils/uuid.util");
-const CodeUtil = require("../utils/code.util");
-const { STATUS, notFound, assertMutable } = require("../utils/lifecycle");
-const { ConflictError } = require("../validations/department.validation");
+const { Facility, Department } = require('../models');
+const { toSequelizePage, buildEnvelope } = require('../utils/pagination');
+const { Op } = require('sequelize');
 
-const DEPARTMENT_ATTRIBUTES = [
-  "department_id",
-  "department_uuid",
-  "facility_id",
-  "department_code",
-  "department_name",
-  "department_type",
-  "status",
-  "created_by",
-  "created_on",
-  "modified_by",
-  "modified_on",
-];
+function notFound(message = 'Department not found') {
+  const error = new Error(message);
+  error.statusCode = 404;
+  error.code = 'DEPARTMENT_NOT_FOUND';
+  error.expose = true;
+  return error;
+}
 
-function toResponseShape(record) {
-  if (!record) return null;
-  const plain =
-    typeof record.get === "function" ? record.get({ plain: true }) : record;
+async function assertFacilityExists(facilityId, tenantUuid) {
+  const facility = await Facility.findOne({ where: { facility_id: facilityId, tenant_uuid: tenantUuid } });
+  if (!facility) {
+    const error = new Error('Facility not found in this tenant');
+    error.statusCode = 404;
+    error.code = 'FACILITY_NOT_FOUND';
+    error.expose = true;
+    throw error;
+  }
+}
+
+function toResponse(department) {
+  if (!department) return null;
+  const plain = department.get ? department.get({ plain: true }) : department;
   return {
-    departmentId: plain.department_id,
-    departmentUuid: plain.department_uuid,
-    facilityId: plain.facility_id,
-    departmentCode: plain.department_code,
-    departmentName: plain.department_name,
-    departmentType: plain.department_type,
+    departmentId: plain.departmentId,
+    departmentUuid: plain.departmentUuid,
+    tenantUuid: plain.tenantUuid,
+    facilityId: plain.facilityId,
+    departmentName: plain.departmentName,
+    departmentType: plain.departmentType,
     status: plain.status,
-    createdBy: plain.created_by,
-    createdOn: plain.created_on,
-    modifiedBy: plain.modified_by,
-    modifiedOn: plain.modified_on,
+    createdOn: plain.createdOn,
+    modifiedOn: plain.modifiedOn,
   };
 }
 
 class DepartmentService {
-  async getDepartmentList({ page, limit, status, facilityId, search } = {}) {
+  async getList({ page, limit, search, status, facilityId, tenantUuid }) {
     const { limit: safeLimit, offset, page: safePage } = toSequelizePage({ page, limit });
 
-    const where = {};
+    const where = { tenant_uuid: tenantUuid };
     if (status) where.status = status;
     if (facilityId) where.facility_id = facilityId;
     if (search) where.department_name = { [Op.like]: `%${search}%` };
 
-    const result = await Departments.findAndCountAll({
+    const result = await Department.findAndCountAll({
       where,
-      attributes: DEPARTMENT_ATTRIBUTES,
-      order: [["created_on", "DESC"]],
       limit: safeLimit,
       offset,
+      order: [['createdOn', 'DESC']],
     });
 
     return buildEnvelope(
-      { rows: result.rows.map(toResponseShape), count: result.count },
+      { rows: result.rows.map(toResponse), count: result.count },
       { page: safePage, limit: safeLimit },
     );
   }
 
-  async getDepartments({ facilityId } = {}) {
-    const where = { status: STATUS.ACTIVE };
+  /**
+   * Unpaginated, ACTIVE-only, optionally scoped to one facility. The
+   * facilityId filter is what feeds the department picker inside the
+   * facility-services create/edit form (departments.component.ts also
+   * calls this without a filter for its own facility picker's sibling use).
+   */
+  async getDropdownList({ tenantUuid, facilityId }) {
+    const where = { tenant_uuid: tenantUuid, status: 'ACTIVE' };
     if (facilityId) where.facility_id = facilityId;
 
-    const departments = await Departments.findAll({
-      where,
-      attributes: DEPARTMENT_ATTRIBUTES,
-      order: [["department_name", "ASC"]],
-    });
-
-    return departments.map(toResponseShape);
+    const rows = await Department.findAll({ where, order: [['departmentName', 'ASC']] });
+    return { success: true, count: rows.length, data: rows.map(toResponse) };
   }
 
-  async getDepartmentById(departmentId) {
-    const department = await Departments.findOne({
-      where: { department_id: departmentId },
-      attributes: DEPARTMENT_ATTRIBUTES,
+  async getById(departmentId, { tenantUuid }) {
+    const department = await Department.findOne({
+      where: { department_id: departmentId, tenant_uuid: tenantUuid },
     });
-    if (!department) throw notFound("Department");
-    return toResponseShape(department);
+    if (!department) throw notFound();
+    return toResponse(department);
   }
 
-  async _findEntityOrThrow(departmentId, transaction) {
-    const department = await Departments.findOne({
-      where: { department_id: departmentId },
-      transaction,
+  async create(payload, { tenantUuid, userId }) {
+    await assertFacilityExists(payload.facilityId, tenantUuid);
+
+    const department = await Department.create({
+      tenantUuid,
+      facilityId: payload.facilityId,
+      departmentName: payload.departmentName,
+      departmentType: payload.departmentType || null,
+      status: 'ACTIVE',
+      createdBy: userId || null,
+      modifiedBy: userId || null,
     });
-    if (!department) throw notFound("Department");
-    return department;
+
+    return toResponse(department);
   }
 
-  async _assertFacilityExists(facilityId, transaction) {
-    if (!facilityId) return;
-    const facility = await Facilities.findOne({
-      where: { facility_id: facilityId },
-      transaction,
+  async update(departmentId, patch, { tenantUuid, userId }) {
+    const department = await Department.findOne({
+      where: { department_id: departmentId, tenant_uuid: tenantUuid },
     });
-    if (!facility) {
-      throw new ConflictError(
-        "facilityId does not reference an existing facility",
-        [{ field: "facilityId", message: "not found" }],
-      );
+    if (!department) throw notFound();
+
+    if (patch.facilityId !== undefined) {
+      await assertFacilityExists(patch.facilityId, tenantUuid);
     }
+
+    await department.update({ ...patch, modifiedBy: userId || null, modifiedOn: new Date() });
+    return toResponse(department);
   }
 
-  async _assertNoDuplicate({ departmentName, facilityId, excludeId, transaction } = {}) {
-    if (!departmentName) return;
-    const where = { department_name: departmentName, facility_id: facilityId };
-    if (excludeId) where.department_id = { [Op.ne]: excludeId };
-
-    const existing = await Departments.findOne({
-      where,
-      attributes: ["department_id", "department_code", "department_name"],
-      transaction,
+  async updateStatus(departmentId, status, { tenantUuid, userId }) {
+    const department = await Department.findOne({
+      where: { department_id: departmentId, tenant_uuid: tenantUuid },
     });
-    if (existing) {
-      throw new ConflictError(
-        "Department with this departmentName already exists in this facility",
-        [{ field: "departmentName", message: "must be unique within the facility" }],
-      );
-    }
-  }
+    if (!department) throw notFound();
 
-  async createDepartment(data, actorUserId) {
-    await this._assertFacilityExists(data.facilityId);
-    await this._assertNoDuplicate({
-      departmentName: data.departmentName,
-      facilityId: data.facilityId,
-    });
-
-    const now = new Date();
-    const created = await Departments.create({
-      department_uuid: UuidUtil.generate(),
-      facility_id: data.facilityId,
-      department_code: CodeUtil.generateCode("DE", data.departmentName),
-      department_name: data.departmentName,
-      department_type: data.departmentType ?? null,
-      status: STATUS.ACTIVE,
-      created_by: actorUserId,
-      created_on: now,
-      modified_by: actorUserId,
-      modified_on: now,
-    });
-
-    return this.getDepartmentById(created.department_id);
-  }
-
-  async updateDepartment(departmentId, data, actorUserId) {
-    return sequelize.transaction(async (transaction) => {
-      const department = await this._findEntityOrThrow(departmentId, transaction);
-      assertMutable(department, "Department");
-
-      if (data.facilityId !== undefined) {
-        await this._assertFacilityExists(data.facilityId, transaction);
-      }
-      if (data.departmentName !== undefined) {
-        await this._assertNoDuplicate({
-          departmentName: data.departmentName,
-          facilityId: data.facilityId ?? department.facility_id,
-          excludeId: departmentId,
-          transaction,
-        });
-      }
-
-      const values = { modified_by: actorUserId, modified_on: new Date() };
-      if (data.facilityId !== undefined) values.facility_id = data.facilityId;
-      if (data.departmentName !== undefined) values.department_name = data.departmentName;
-      if (data.departmentType !== undefined) values.department_type = data.departmentType;
-
-      await department.update(values, { transaction });
-      return department;
-    }).then((department) => this.getDepartmentById(department.department_id));
-  }
-
-  async deleteDepartment(departmentId, actorUserId) {
-    const department = await this._findEntityOrThrow(departmentId);
-    assertMutable(department, "Department");
-
-    await department.update({
-      status: STATUS.DELETED,
-      modified_by: actorUserId,
-      modified_on: new Date(),
-    });
-
-    return this.getDepartmentById(departmentId);
-  }
-
-  async updateStatus(departmentId, status, actorUserId) {
-    return sequelize.transaction(async (transaction) => {
-      const department = await this._findEntityOrThrow(departmentId, transaction);
-      assertMutable(department, "Department");
-
-      await department.update(
-        { status, modified_by: actorUserId, modified_on: new Date() },
-        { transaction },
-      );
-      return department;
-    }).then((department) => this.getDepartmentById(department.department_id));
+    await department.update({ status, modifiedBy: userId || null, modifiedOn: new Date() });
+    return toResponse(department);
   }
 }
 

@@ -1,119 +1,60 @@
-/**
- * organization.validation.js
- *
- * Lightweight, dependency-free validation for the /organizations endpoints.
- * Mirrors identity-service's tenant.validation.js: error shape
- * (statusCode + message + details) flows through the same error-handling
- * middleware as notFound()/assertMutable() in utils/lifecycle.js.
- */
-const ALLOWED_STATUSES = ["ACTIVE", "INACTIVE", "DISABLED", "DELETED"];
-const ALLOWED_ORGANIZATION_TYPES = [
-  "STATE_HEALTH_DEPT",
-  "DISTRICT_HEALTH_AUTHORITY",
-  "HEALTH_NETWORK",
-  "GOVERNMENT",
-  "NGO",
-  "PRIVATE_CHAIN",
-  "OTHER",
+const { Joi } = require('../middleware/validate');
+const { paginationQuerySchema } = require('../utils/pagination');
+
+// Matches ORGANIZATION_TYPES in organizations.component.ts exactly — keep
+// these two lists in sync if either changes.
+const ORGANIZATION_TYPES = [
+  'STATE_HEALTH_DEPT',
+  'DISTRICT_HEALTH_AUTHORITY',
+  'HEALTH_NETWORK',
+  'GOVERNMENT',
+  'NGO',
+  'PRIVATE_CHAIN',
+  'OTHER',
 ];
 
-class ValidationError extends Error {
-  constructor(message, details = []) {
-    super(message);
-    this.name = "ValidationError";
-    this.statusCode = 400;
-    this.details = details;
-  }
-}
+const STATUSES = ['ACTIVE', 'INACTIVE', 'DISABLED', 'DELETED'];
 
-class ConflictError extends Error {
-  constructor(message, details = []) {
-    super(message);
-    this.name = "ConflictError";
-    this.statusCode = 409;
-    this.details = details;
-  }
-}
+const listQuerySchema = paginationQuerySchema({
+  search: Joi.string().max(200).allow('').optional(),
+  status: Joi.string().valid(...STATUSES, '').optional(),
+  organizationType: Joi.string().valid(...ORGANIZATION_TYPES, '').optional(),
+});
 
-function isNonEmptyString(value) {
-  return typeof value === "string" && value.trim().length > 0;
-}
+const createSchema = Joi.object({
+  organizationName: Joi.string().trim().min(2).max(200).required(),
+  organizationType: Joi.string().valid(...ORGANIZATION_TYPES).allow(null).optional(),
+  parentOrganizationId: Joi.number().integer().positive().allow(null).optional(),
+});
 
-/** Validates payload for POST /organizations. Throws ValidationError. */
-function validateCreatePayload(body = {}) {
-  const errors = [];
+const updateSchema = Joi.object({
+  organizationName: Joi.string().trim().min(2).max(200).optional(),
+  organizationType: Joi.string().valid(...ORGANIZATION_TYPES).allow(null).optional(),
+  parentOrganizationId: Joi.number().integer().positive().allow(null).optional(),
+}).min(1);
 
-  if (!isNonEmptyString(body.organizationName)) {
-    errors.push({ field: "organizationName", message: "organizationName is required" });
-  } else if (body.organizationName.length > 200) {
-    errors.push({ field: "organizationName", message: "organizationName must be at most 200 characters" });
-  }
+const statusSchema = Joi.object({
+  status: Joi.string().valid(...STATUSES).required(),
+});
 
-  if (body.organizationType !== undefined && body.organizationType !== null) {
-    if (!ALLOWED_ORGANIZATION_TYPES.includes(body.organizationType)) {
-      errors.push({
-        field: "organizationType",
-        message: `organizationType must be one of: ${ALLOWED_ORGANIZATION_TYPES.join(", ")}`,
-      });
-    }
-  }
-
-  if (body.parentOrganizationId !== undefined && body.parentOrganizationId !== null) {
-    if (!Number.isInteger(body.parentOrganizationId) || body.parentOrganizationId <= 0) {
-      errors.push({ field: "parentOrganizationId", message: "parentOrganizationId must be a positive integer" });
-    }
-  }
-
-  if (errors.length) throw new ValidationError("Invalid organization payload", errors);
-}
-
-/** Validates payload for PUT/PATCH /organizations/:id. Same rules, all fields optional-aware. */
-function validateUpdatePayload(body = {}) {
-  const errors = [];
-
-  if (body.organizationName !== undefined) {
-    if (!isNonEmptyString(body.organizationName)) {
-      errors.push({ field: "organizationName", message: "organizationName cannot be empty" });
-    } else if (body.organizationName.length > 200) {
-      errors.push({ field: "organizationName", message: "organizationName must be at most 200 characters" });
-    }
-  }
-
-  if (body.organizationType !== undefined && body.organizationType !== null) {
-    if (!ALLOWED_ORGANIZATION_TYPES.includes(body.organizationType)) {
-      errors.push({
-        field: "organizationType",
-        message: `organizationType must be one of: ${ALLOWED_ORGANIZATION_TYPES.join(", ")}`,
-      });
-    }
-  }
-
-  if (body.parentOrganizationId !== undefined && body.parentOrganizationId !== null) {
-    if (!Number.isInteger(body.parentOrganizationId) || body.parentOrganizationId <= 0) {
-      errors.push({ field: "parentOrganizationId", message: "parentOrganizationId must be a positive integer" });
-    }
-  }
-
-  if (errors.length) throw new ValidationError("Invalid organization payload", errors);
-}
-
-/** Validates payload for PATCH /organizations/:id/status. */
-function validateStatusPayload(body = {}) {
-  const errors = [];
-  if (!isNonEmptyString(body.status)) {
-    errors.push({ field: "status", message: "status is required" });
-  } else if (!ALLOWED_STATUSES.includes(body.status)) {
-    errors.push({ field: "status", message: `status must be one of: ${ALLOWED_STATUSES.join(", ")}` });
-  }
-  if (errors.length) throw new ValidationError("Invalid status payload", errors);
-}
+// Internal (service-to-service) create is a slightly different shape:
+// identity-admin-service's registrationService.js supplies tenantUuid and
+// userId directly in the body rather than deriving them from a user JWT,
+// since registration happens before the user can log in.
+const internalCreateSchema = Joi.object({
+  tenantUuid: Joi.string().uuid().required(),
+  organizationName: Joi.string().trim().min(2).max(200).required(),
+  organizationType: Joi.string().valid(...ORGANIZATION_TYPES).allow(null).optional(),
+  parentOrganizationId: Joi.number().integer().positive().allow(null).optional(),
+  userId: Joi.number().integer().positive().allow(null).optional(),
+});
 
 module.exports = {
-  ValidationError,
-  ConflictError,
-  ALLOWED_STATUSES,
-  ALLOWED_ORGANIZATION_TYPES,
-  validateCreatePayload,
-  validateUpdatePayload,
-  validateStatusPayload,
+  ORGANIZATION_TYPES,
+  STATUSES,
+  listQuerySchema,
+  createSchema,
+  updateSchema,
+  statusSchema,
+  internalCreateSchema,
 };
