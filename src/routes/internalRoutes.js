@@ -12,7 +12,7 @@ const { internalCreateSchema } = require('../validations/organization.validation
 // service credential specifically, not an end-user JWT.
 
 /**
- * @swagger
+ * @openapi
  * /internal/organizations:
  *   post:
  *     tags: [Internal]

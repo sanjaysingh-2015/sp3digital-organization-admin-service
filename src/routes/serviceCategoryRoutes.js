@@ -8,7 +8,7 @@ const { listQuerySchema, createSchema, updateSchema, statusSchema } = require('.
 // Route paths are relative to /api/v1/organization-admin/service-categories.
 
 /**
- * @swagger
+ * @openapi
  * /service-categories/list:
  *   get:
  *     tags: [Service Categories]
@@ -31,7 +31,7 @@ const { listQuerySchema, createSchema, updateSchema, statusSchema } = require('.
 router.get('/list', controller.getDropdownList);
 
 /**
- * @swagger
+ * @openapi
  * /service-categories:
  *   get:
  *     tags: [Service Categories]
@@ -86,7 +86,7 @@ router.get('/', validate(listQuerySchema, 'query'), controller.getList);
 router.post('/', validate(createSchema), controller.create);
 
 /**
- * @swagger
+ * @openapi
  * /service-categories/{serviceCategoryId}:
  *   get:
  *     tags: [Service Categories]
@@ -131,7 +131,7 @@ router.get('/:serviceCategoryId', controller.getById);
 router.put('/:serviceCategoryId', validate(updateSchema), controller.update);
 
 /**
- * @swagger
+ * @openapi
  * /service-categories/{serviceCategoryId}/status:
  *   patch:
  *     tags: [Service Categories]

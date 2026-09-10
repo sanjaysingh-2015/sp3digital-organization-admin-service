@@ -15,7 +15,7 @@ const {
 // controller/service don't implement getDropdownList.
 
 /**
- * @swagger
+ * @openapi
  * /facility-services:
  *   get:
  *     tags: [Facility Services]
@@ -68,7 +68,7 @@ router.get('/', validate(listQuerySchema, 'query'), controller.getList);
 router.post('/', validate(createSchema), controller.create);
 
 /**
- * @swagger
+ * @openapi
  * /facility-services/{facilityServiceId}:
  *   get:
  *     tags: [Facility Services]
@@ -113,7 +113,7 @@ router.get('/:facilityServiceId', controller.getById);
 router.put('/:facilityServiceId', validate(updateSchema), controller.update);
 
 /**
- * @swagger
+ * @openapi
  * /facility-services/{facilityServiceId}/status:
  *   patch:
  *     tags: [Facility Services]

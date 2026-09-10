@@ -12,7 +12,7 @@ const dropdownQuerySchema = Joi.object({
 });
 
 /**
- * @swagger
+ * @openapi
  * /departments/list:
  *   get:
  *     tags: [Departments]
@@ -41,7 +41,7 @@ const dropdownQuerySchema = Joi.object({
 router.get('/list', validate(dropdownQuerySchema, 'query'), controller.getDropdownList);
 
 /**
- * @swagger
+ * @openapi
  * /departments:
  *   get:
  *     tags: [Departments]
@@ -91,7 +91,7 @@ router.get('/', validate(listQuerySchema, 'query'), controller.getList);
 router.post('/', validate(createSchema), controller.create);
 
 /**
- * @swagger
+ * @openapi
  * /departments/{departmentId}:
  *   get:
  *     tags: [Departments]
@@ -136,7 +136,7 @@ router.get('/:departmentId', controller.getById);
 router.put('/:departmentId', validate(updateSchema), controller.update);
 
 /**
- * @swagger
+ * @openapi
  * /departments/{departmentId}/status:
  *   patch:
  *     tags: [Departments]

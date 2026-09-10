@@ -63,7 +63,7 @@ const apiRateLimiter = rateLimit({
 const basePath = '/api/v1/organization-admin';
 
 /**
- * @swagger
+ * @openapi
  * /health:
  *   get:
  *     tags: [Health]

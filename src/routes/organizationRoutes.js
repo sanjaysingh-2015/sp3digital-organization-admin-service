@@ -16,7 +16,7 @@ const { listQuerySchema, createSchema, updateSchema, statusSchema } = require('.
 // Route paths are relative to /api/v1/organization-admin/organizations.
 
 /**
- * @swagger
+ * @openapi
  * /organizations/list:
  *   get:
  *     tags: [Organizations]
@@ -39,7 +39,7 @@ const { listQuerySchema, createSchema, updateSchema, statusSchema } = require('.
 router.get('/list', controller.getDropdownList);
 
 /**
- * @swagger
+ * @openapi
  * /organizations:
  *   get:
  *     tags: [Organizations]
@@ -89,7 +89,7 @@ router.get('/', validate(listQuerySchema, 'query'), controller.getList);
 router.post('/', validate(createSchema), controller.create);
 
 /**
- * @swagger
+ * @openapi
  * /organizations/{organizationId}:
  *   get:
  *     tags: [Organizations]
@@ -159,7 +159,7 @@ router.get('/:organizationId', controller.getById);
 router.put('/:organizationId', validate(updateSchema), controller.update);
 
 /**
- * @swagger
+ * @openapi
  * /organizations/{organizationId}/status:
  *   patch:
  *     tags: [Organizations]
