@@ -8,9 +8,6 @@ const {
 } = require("../validations/organization.validation");
 const { FACILITY_TYPES } = require("../validations/facility.validation");
 const { DEPARTMENT_TYPES } = require("../validations/department.validation");
-const {
-  SERVICE_CATEGORIES,
-} = require("../validations/facilityService.validation");
 
 const basePath = "/api/v1/organization-admin";
 
@@ -350,29 +347,26 @@ const options = {
             facilityServiceUuid: { type: "string", format: "uuid" },
             tenantUuid: { type: "string", format: "uuid" },
             facilityId: { type: "integer" },
+            facilityName: { type: "string", nullable: true },
             departmentId: { type: "integer", nullable: true },
-            serviceName: { type: "string" },
-            serviceCategory: {
-              type: "string",
-              nullable: true,
-              enum: [...SERVICE_CATEGORIES, null],
-            },
+            departmentName: { type: "string", nullable: true },
+            serviceId: { type: "integer", nullable: true },
+            serviceName: { type: "string", nullable: true },
+            serviceCode: { type: "string", nullable: true },
+            serviceCategoryId: { type: "integer" },
+            serviceCategoryName: { type: "string", nullable: true },
             status: { type: "string", enum: [...STATUSES] },
             ...auditFields,
           },
         },
         FacilityServiceCreateRequest: {
           type: "object",
-          required: ["facilityId", "serviceName"],
+          required: ["facilityId", "serviceCategoryId"],
           properties: {
             facilityId: { type: "integer" },
             departmentId: { type: "integer", nullable: true },
-            serviceName: { type: "string", minLength: 2, maxLength: 200 },
-            serviceCategory: {
-              type: "string",
-              nullable: true,
-              enum: [...SERVICE_CATEGORIES, null],
-            },
+            serviceId: { type: "integer", nullable: true },
+            serviceCategoryId: { type: "integer" },
           },
         },
         FacilityServiceUpdateRequest: {
@@ -381,12 +375,8 @@ const options = {
           properties: {
             facilityId: { type: "integer" },
             departmentId: { type: "integer", nullable: true },
-            serviceName: { type: "string", minLength: 2, maxLength: 200 },
-            serviceCategory: {
-              type: "string",
-              nullable: true,
-              enum: [...SERVICE_CATEGORIES, null],
-            },
+            serviceId: { type: "integer", nullable: true },
+            serviceCategoryId: { type: "integer" },
           },
         },
         ServiceCategory: {

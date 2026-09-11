@@ -247,12 +247,40 @@ test('facility onboarding chain: create org -> create facility -> create departm
   assert.equal(department.status, 201);
   departmentId = department.json.departmentId;
 
+  // Facility services now reference the Service/ServiceCategory master
+  // catalog by id (serviceId/serviceCategoryId) rather than the old
+  // free-text serviceName/serviceCategory fields.
+  const category = await call('POST', '/api/v1/organization-admin/service-categories', {
+    token,
+    body: { organizationId: newOrgId, serviceCategoryName: 'Consultation' },
+  });
+  assert.equal(category.status, 201);
+  const serviceCategoryId = category.json.serviceCategoryId;
+
+  const service = await call('POST', '/api/v1/organization-admin/services', {
+    token,
+    body: { organizationId: newOrgId, serviceCategoryId, serviceName: 'General Consultation' },
+  });
+  assert.equal(service.status, 201);
+  const serviceId = service.json.serviceId;
+
   const facilityService = await call('POST', '/api/v1/organization-admin/facility-services', {
     token,
-    body: { facilityId, departmentId, serviceName: 'General Consultation', serviceCategory: 'OUTPATIENT' },
+    body: { facilityId, departmentId, serviceId, serviceCategoryId },
   });
   assert.equal(facilityService.status, 201);
   assert.equal(facilityService.json.departmentId, departmentId);
+  // getList/getById/create all join Facility/Department/Service/ServiceCategory
+  // so the UI grid can show names instead of raw ids.
+  assert.equal(facilityService.json.facilityName, 'Main Clinic');
+  assert.equal(facilityService.json.departmentName, 'Outpatient');
+  assert.equal(facilityService.json.serviceName, 'General Consultation');
+  assert.equal(facilityService.json.serviceCategoryName, 'Consultation');
+
+  const list = await call('GET', `/api/v1/organization-admin/facility-services?search=General`, { token });
+  assert.equal(list.status, 200);
+  assert.equal(list.json.data.length, 1, 'search should match via the joined Service.service_name column');
+  assert.equal(list.json.data[0].serviceName, 'General Consultation');
 });
 
 test('facilities/list and departments/list?facilityId= dropdowns work — matches facility-services.component.ts form cascading', async () => {

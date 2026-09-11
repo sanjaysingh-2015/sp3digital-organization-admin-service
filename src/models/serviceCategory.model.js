@@ -21,7 +21,11 @@ module.exports = (sequelize, DataTypes) => {
       organizationId: { type: DataTypes.BIGINT, allowNull: false, field: 'organization_id' },
       serviceCategoryCode: { type: DataTypes.STRING(20), allowNull: false, field: 'service_category_code' },
       serviceCategoryName: { type: DataTypes.STRING(100), allowNull: false, field: 'service_category_name' },
-      description: { type: DataTypes.STRING(500), allowNull: false, field: 'description' },
+      // Optional, same as Service.description — matches
+      // serviceCategory.validation.js treating it as optional on
+      // create/update. Was allowNull:false, so any create/update omitting
+      // it threw a 500 SequelizeValidationError.
+      description: { type: DataTypes.STRING(500), allowNull: true, field: 'description' },
       status: { type: DataTypes.STRING(30), allowNull: false, defaultValue: 'ACTIVE', field: 'status' },
       createdBy: { type: DataTypes.BIGINT, allowNull: true, field: 'created_by' },
       createdOn: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_on' },

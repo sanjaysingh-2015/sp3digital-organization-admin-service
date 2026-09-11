@@ -1,24 +1,13 @@
 const { Joi } = require('../middleware/validate');
 const { paginationQuerySchema } = require('../utils/pagination');
 
-// Matches SERVICE_CATEGORIES in facility-services.component.ts exactly.
-const SERVICE_CATEGORIES = [
-  'OUTPATIENT',
-  'INPATIENT',
-  'DIAGNOSTIC',
-  'IMMUNIZATION',
-  'MATERNAL_HEALTH',
-  'TELECONSULTATION',
-  'EMERGENCY',
-  'OTHER',
-];
 const STATUSES = ['ACTIVE', 'INACTIVE', 'DISABLED', 'DELETED'];
 
 const listQuerySchema = paginationQuerySchema({
   search: Joi.string().max(200).allow('').optional(),
   status: Joi.string().valid(...STATUSES, '').optional(),
   facilityId: Joi.number().integer().positive().allow('').optional(),
-  serviceCategory: Joi.string().valid(...SERVICE_CATEGORIES, '').optional(),
+  serviceCategoryId: Joi.number().integer().positive().allow('').optional(),
 });
 
 const createSchema = Joi.object({
@@ -39,4 +28,4 @@ const statusSchema = Joi.object({
   status: Joi.string().valid(...STATUSES).required(),
 });
 
-module.exports = { SERVICE_CATEGORIES, STATUSES, listQuerySchema, createSchema, updateSchema, statusSchema };
+module.exports = { STATUSES, listQuerySchema, createSchema, updateSchema, statusSchema };

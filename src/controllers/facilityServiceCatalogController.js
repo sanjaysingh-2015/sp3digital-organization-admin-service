@@ -3,14 +3,14 @@ const facilityServiceCatalogService = require('../services/facilityServiceCatalo
 class FacilityServiceCatalogController {
   getList = async (req, res, next) => {
     try {
-      const { page, limit, search, status, facilityId, serviceCategory } = req.query;
+      const { page, limit, search, status, facilityId, serviceCategoryId } = req.query;
       const result = await facilityServiceCatalogService.getList({
         page,
         limit,
         search,
         status,
         facilityId,
-        serviceCategory,
+        serviceCategoryId,
         tenantUuid: req.auth.tenantUuid,
       });
       return res.status(200).json(result);
