@@ -8,6 +8,7 @@ const listQuerySchema = paginationQuerySchema({
   status: Joi.string().valid(...STATUSES, '').optional(),
   facilityId: Joi.number().integer().positive().allow('').optional(),
   serviceCategoryId: Joi.number().integer().positive().allow('').optional(),
+  serviceId: Joi.number().integer().positive().allow('').optional(),
 });
 
 const createSchema = Joi.object({

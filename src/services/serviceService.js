@@ -8,16 +8,16 @@
 // exactly the bug this fixes (every call below used to resolve
 // `Service.findAndCountAll`/`findOne`/`create` against the class,
 // not the model, so every route on this resource threw at runtime).
-const { Organization, Service: ServiceModel } = require("../models");
+const { Organization, ServiceCategory, Service: ServiceModel } = require("../models");
 const { toSequelizePage, buildEnvelope } = require("../utils/pagination");
 const UuidUtil = require("../utils/uuid.util");
 const CodeUtil = require("../utils/code.util");
 const { Op } = require("sequelize");
 
-function notFound(message = "Service category not found") {
+function notFound(message = "Service not found") {
   const error = new Error(message);
   error.statusCode = 404;
-  error.code = "SERVICE_CATEGORY_NOT_FOUND";
+  error.code = "SERVICE_NOT_FOUND";
   error.expose = true;
   return error;
 }
@@ -35,6 +35,20 @@ async function assertOrganizationExists(organizationId, tenantUuid) {
   }
 }
 
+/** A service category, if given, must belong to the same organization as the service. */
+async function assertServiceCategoryBelongsToOrganization(serviceCategoryId, organizationId, tenantUuid) {
+  const serviceCategory = await ServiceCategory.findOne({
+    where: { service_category_id: serviceCategoryId, organization_id: organizationId, tenant_uuid: tenantUuid },
+  });
+  if (!serviceCategory) {
+    const error = new Error("Service category not found in this organization");
+    error.statusCode = 404;
+    error.code = "SERVICE_CATEGORY_NOT_FOUND";
+    error.expose = true;
+    throw error;
+  }
+}
+
 function toResponse(service) {
   if (!service) return null;
   const plain = service.get
@@ -45,6 +59,7 @@ function toResponse(service) {
     serviceUuid: plain.serviceUuid,
     tenantUuid: plain.tenantUuid,
     organizationId: plain.organizationId,
+    serviceCategoryId: plain.serviceCategoryId,
     serviceCode: plain.serviceCode,
     serviceName: plain.serviceName,
     description: plain.description,
@@ -55,7 +70,7 @@ function toResponse(service) {
 }
 
 class Service {
-  async getList({ page, limit, search, status, organizationId, tenantUuid }) {
+  async getList({ page, limit, search, status, organizationId, serviceCategoryId, tenantUuid }) {
     const {
       limit: safeLimit,
       offset,
@@ -65,12 +80,10 @@ class Service {
     const where = { tenant_uuid: tenantUuid };
     if (status) where.status = status;
     if (organizationId) where.organization_id = organizationId;
-    if (search) {
-      where[Op.or] = [
-        { service_name: { [Op.like]: `%${search}%` } },
-        { city: { [Op.like]: `%${search}%` } },
-      ];
-    }
+    if (serviceCategoryId) where.service_category_id = serviceCategoryId;
+    // `city` isn't a Service column — that was copy-pasted from a
+    // facility-style search and threw a SQL error on every search.
+    if (search) where.service_name = { [Op.like]: `%${search}%` };
 
     const result = await ServiceModel.findAndCountAll({
       where,
@@ -85,9 +98,13 @@ class Service {
     );
   }
 
-  async getDropdownList({ tenantUuid }) {
+  async getDropdownList({ tenantUuid, organizationId, serviceCategoryId }) {
+    const where = { tenant_uuid: tenantUuid, status: "ACTIVE" };
+    if (organizationId) where.organization_id = organizationId;
+    if (serviceCategoryId) where.service_category_id = serviceCategoryId;
+
     const rows = await ServiceModel.findAll({
-      where: { tenant_uuid: tenantUuid, status: "ACTIVE" },
+      where,
       order: [["serviceName", "ASC"]],
     });
     return { success: true, count: rows.length, data: rows.map(toResponse) };
@@ -106,10 +123,12 @@ class Service {
 
   async create(payload, { tenantUuid, userId }) {
     await assertOrganizationExists(payload.organizationId, tenantUuid);
+    await assertServiceCategoryBelongsToOrganization(payload.serviceCategoryId, payload.organizationId, tenantUuid);
 
     const service = await ServiceModel.create({
       tenantUuid,
       organizationId: payload.organizationId,
+      serviceCategoryId: payload.serviceCategoryId,
       // Auto-generated, same pattern as Organization.generateCode — the
       // column is NOT NULL and nothing in the create request supplies it.
       serviceUuid: UuidUtil.generate(),
@@ -130,8 +149,12 @@ class Service {
     });
     if (!service) throw notFound();
 
+    const effectiveOrganizationId = patch.organizationId !== undefined ? patch.organizationId : service.organizationId;
     if (patch.organizationId !== undefined) {
       await assertOrganizationExists(patch.organizationId, tenantUuid);
+    }
+    if (patch.serviceCategoryId !== undefined) {
+      await assertServiceCategoryBelongsToOrganization(patch.serviceCategoryId, effectiveOrganizationId, tenantUuid);
     }
 
     await service.update({

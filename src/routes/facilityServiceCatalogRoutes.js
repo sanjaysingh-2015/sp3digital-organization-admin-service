@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const controller = require('../controllers/facilityServiceCatalogController');
-const { validate } = require('../middleware/validate');
+const { validate,Joi } = require('../middleware/validate');
 const {
   listQuerySchema,
   createSchema,
@@ -10,9 +10,42 @@ const {
   statusSchema,
 } = require('../validations/facilityService.validation');
 
+const dropdownQuerySchema = Joi.object({
+  facilityId: Joi.number().integer().positive().optional(),
+});
+
 // Route paths are relative to /api/v1/organization-admin/facility-services.
 // Unlike the other resources, this one has no /list dropdown route — the
 // controller/service don't implement getDropdownList.
+
+/**
+ * @openapi
+ * /departments/list:
+ *   get:
+ *     tags: [Departments]
+ *     summary: Unpaginated ACTIVE-only list, for dropdowns
+ *     parameters:
+ *       - name: facilityId
+ *         in: query
+ *         description: Narrow the dropdown to departments of a single facility.
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: All ACTIVE departments for the caller's tenant (optionally filtered by facility).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 count: { type: integer }
+ *                 data:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/Department' }
+ *       400: { $ref: '#/components/responses/ValidationError' }
+ *       401: { $ref: '#/components/responses/Unauthenticated' }
+ */
+router.get('/list', validate(dropdownQuerySchema, 'query'), controller.getDropdownList);
 
 /**
  * @openapi

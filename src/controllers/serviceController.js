@@ -3,13 +3,14 @@ const serviceService = require('../services/serviceService');
 class ServiceController {
   getList = async (req, res, next) => {
     try {
-      const { page, limit, search, status,  organizationId } = req.query;
+      const { page, limit, search, status,  organizationId, serviceCategoryId } = req.query;
       const result = await serviceService.getList({
         page,
         limit,
         search,
         status,
         organizationId,
+        serviceCategoryId,
         tenantUuid: req.auth.tenantUuid,
       });
       return res.status(200).json(result);
@@ -21,7 +22,12 @@ class ServiceController {
   // For dropdowns (departments' facility picker, facility-services' facility picker).
   getDropdownList = async (req, res, next) => {
     try {
-      const result = await serviceService.getDropdownList({ tenantUuid: req.auth.tenantUuid });
+      const { organizationId, serviceCategoryId } = req.query;
+      const result = await serviceService.getDropdownList({
+        organizationId,
+        serviceCategoryId,
+        tenantUuid: req.auth.tenantUuid,
+      });
       return res.status(200).json(result);
     } catch (error) {
       return next(error);

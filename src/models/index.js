@@ -27,7 +27,15 @@ FacilityService.belongsTo(Department, { foreignKey: 'departmentId' });
 ServiceCategory.hasMany(FacilityService, { foreignKey: 'serviceCategoryId' });
 FacilityService.belongsTo(ServiceCategory, { foreignKey: "serviceCategoryId"});
 
-Service.hasMany(FacilityService, { foreignKey: 'departmentId' })
+// Every Service belongs to exactly one ServiceCategory (was missing
+// entirely — serviceCategoryId didn't even exist as a column on Service
+// until now, see service.model.js).
+ServiceCategory.hasMany(Service, { foreignKey: 'serviceCategoryId' });
+Service.belongsTo(ServiceCategory, { foreignKey: 'serviceCategoryId' });
+
+// Fixed: was `{ foreignKey: 'departmentId' }`, a copy-paste bug — a
+// FacilityService is linked to a Service via serviceId, not departmentId.
+Service.hasMany(FacilityService, { foreignKey: 'serviceId' })
 FacilityService.belongsTo(Service, { foreignKey: 'serviceId' });
 
 module.exports = {

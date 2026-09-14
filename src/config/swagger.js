@@ -436,7 +436,7 @@ const options = {
         },
         ServiceCreateRequest: {
           type: "object",
-          required: ["organizationId", "serviceName"],
+          required: ["organizationId", "serviceCategoryId", "serviceName"],
           properties: {
             organizationId: { type: "integer" },
             serviceCategoryId: { type: "integer" },

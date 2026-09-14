@@ -17,6 +17,12 @@ module.exports = (sequelize, DataTypes) => {
       },
       tenantUuid: { type: DataTypes.UUID, allowNull: false, field: 'tenant_uuid' },
       organizationId: { type: DataTypes.BIGINT, allowNull: false, field: 'organization_id' },
+      // Every service belongs to exactly one category (e.g. "Blood Test"
+      // under "Diagnostics"). This column was missing from the model
+      // entirely even though serviceService.js/service.validation.js and
+      // the associations both already assumed it existed — every create
+      // silently inserted a service with no category at all.
+      serviceCategoryId: { type: DataTypes.BIGINT, allowNull: false, field: 'service_category_id' },
       // Optional: a service can be offered facility-wide without a specific
       // owning department (see facility-services.component.ts's `|| null`).
       serviceCode: { type: DataTypes.STRING(20), allowNull: false, field: 'service_code' },
@@ -32,7 +38,7 @@ module.exports = (sequelize, DataTypes) => {
       tableName: 'services',
       freezeTableName: true,
       timestamps: false,
-      indexes: [{ fields: ['tenant_uuid'] }, { fields: ['organization_id'] }],
+      indexes: [{ fields: ['tenant_uuid'] }, { fields: ['organization_id'] }, { fields: ['service_category_id'] }],
     },
   );
 

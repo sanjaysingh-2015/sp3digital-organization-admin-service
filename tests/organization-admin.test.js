@@ -331,3 +331,44 @@ test('validation rejects an out-of-enum facilityType', async () => {
   assert.equal(status, 400);
   assert.equal(json.error.code, 'VALIDATION_ERROR');
 });
+
+// ---------------------------------------------------------------------
+// Services — /services requires serviceCategoryId (a Service belongs to
+// exactly one ServiceCategory). Both the column and the validation for it
+// were missing until this fix; this locks the whole chain in.
+// ---------------------------------------------------------------------
+
+test('service create requires and persists serviceCategoryId', async () => {
+  const token = tokenFor(TENANT_A);
+
+  const category = await call('POST', '/api/v1/organization-admin/service-categories', {
+    token,
+    body: { organizationId: orgId, serviceCategoryName: 'Diagnostics' },
+  });
+  assert.equal(category.status, 201);
+  const serviceCategoryId = category.json.serviceCategoryId;
+
+  // Missing serviceCategoryId should be a validation error, not a 500.
+  const missingCategory = await call('POST', '/api/v1/organization-admin/services', {
+    token,
+    body: { organizationId: orgId, serviceName: 'Blood Test' },
+  });
+  assert.equal(missingCategory.status, 400);
+  assert.equal(missingCategory.json.error.code, 'VALIDATION_ERROR');
+
+  const service = await call('POST', '/api/v1/organization-admin/services', {
+    token,
+    body: { organizationId: orgId, serviceCategoryId, serviceName: 'Blood Test' },
+  });
+  assert.equal(service.status, 201);
+  assert.equal(service.json.serviceCategoryId, serviceCategoryId, 'serviceCategoryId should round-trip on create');
+
+  const list = await call('GET', `/api/v1/organization-admin/services?search=Blood`, { token });
+  assert.equal(list.status, 200);
+  assert.equal(list.json.data.length, 1, 'search should match on service_name without a SQL error');
+  assert.equal(list.json.data[0].serviceCategoryId, serviceCategoryId);
+
+  const filtered = await call('GET', `/api/v1/organization-admin/services?serviceCategoryId=${serviceCategoryId}`, { token });
+  assert.equal(filtered.status, 200);
+  assert.equal(filtered.json.data.length, 1);
+});
