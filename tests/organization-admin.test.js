@@ -372,3 +372,62 @@ test('service create requires and persists serviceCategoryId', async () => {
   assert.equal(filtered.status, 200);
   assert.equal(filtered.json.data.length, 1);
 });
+
+// ---------------------------------------------------------------------
+// Geography lookups — /geography/*. These are global reference data
+// (no tenant scoping), so any tenant's token can read them. Uses direct
+// fixture inserts rather than the full ~320k-row India seed, since the
+// point here is proving the cascade/validation behavior, not the data.
+// ---------------------------------------------------------------------
+
+test('geography endpoints cascade correctly and enforce required parent ids', async () => {
+  const token = tokenFor(TENANT_A);
+  const db = require('../src/models');
+
+  const country = await db.Country.create({ name: 'India', isoAlpha2: 'IN', isoAlpha3: 'IND', status: 'ACTIVE' });
+  const stateA = await db.State.create({ countryId: country.countryId, name: 'Maharashtra', status: 'ACTIVE' });
+  const stateB = await db.State.create({ countryId: country.countryId, name: 'Karnataka', status: 'ACTIVE' });
+  const districtA = await db.District.create({ stateId: stateA.stateId, name: 'Mumbai', status: 'ACTIVE' });
+  await db.District.create({ stateId: stateB.stateId, name: 'Bengaluru Urban', status: 'ACTIVE' });
+  const subDistrict = await db.SubDistrict.create({ districtId: districtA.districtId, name: 'Bandra', status: 'ACTIVE' });
+  const city = await db.City.create({ subDistrictId: subDistrict.subDistrictId, name: 'Bandra West', status: 'ACTIVE' });
+  await db.PostalCode.create({ cityId: city.cityId, code: '400050', status: 'ACTIVE' });
+
+  // Districts scoped to Maharashtra should NOT include Karnataka's.
+  const districts = await call('GET', `/api/v1/organization-admin/geography/districts?stateId=${stateA.stateId}`, { token });
+  assert.equal(districts.status, 200);
+  assert.equal(districts.json.data.length, 1);
+  assert.equal(districts.json.data[0].name, 'Mumbai');
+
+  // The parent id is required below country/state level -- proves the
+  // "select a State, only get that state's districts" dependency is
+  // enforced by validation, not left to the caller to remember.
+  const missingParent = await call('GET', '/api/v1/organization-admin/geography/districts', { token });
+  assert.equal(missingParent.status, 400);
+  assert.equal(missingParent.json.error.code, 'VALIDATION_ERROR');
+
+  const subDistricts = await call('GET', `/api/v1/organization-admin/geography/sub-districts?districtId=${districtA.districtId}`, { token });
+  assert.equal(subDistricts.json.data.length, 1);
+  assert.equal(subDistricts.json.data[0].name, 'Bandra');
+
+  const cities = await call('GET', `/api/v1/organization-admin/geography/cities?subDistrictId=${subDistrict.subDistrictId}`, { token });
+  assert.equal(cities.json.data.length, 1);
+  assert.equal(cities.json.data[0].name, 'Bandra West');
+
+  const postalCodes = await call('GET', `/api/v1/organization-admin/geography/postal-codes?cityId=${city.cityId}`, { token });
+  assert.equal(postalCodes.json.data.length, 1);
+  assert.equal(postalCodes.json.data[0].code, '400050');
+
+  // Reverse lookup: pincode -> full resolved hierarchy in one call.
+  const search = await call('GET', '/api/v1/organization-admin/geography/postal-codes/search?query=400050', { token });
+  assert.equal(search.status, 200);
+  assert.equal(search.json.data.length, 1);
+  assert.equal(search.json.data[0].cityName, 'Bandra West');
+  assert.equal(search.json.data[0].stateName, 'Maharashtra');
+  assert.equal(search.json.data[0].countryName, 'India');
+
+  // Query below the minimum length should be a validation error, not an
+  // unbounded LIKE scan.
+  const tooShort = await call('GET', '/api/v1/organization-admin/geography/postal-codes/search?query=40', { token });
+  assert.equal(tooShort.status, 400);
+});

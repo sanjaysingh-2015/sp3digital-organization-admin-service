@@ -15,6 +15,7 @@ const departmentRoutes = require('./routes/departmentRoutes');
 const facilityServiceCatalogRoutes = require('./routes/facilityServiceCatalogRoutes');
 const serviceCategoryRoutes = require('./routes/serviceCategoryRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
+const geographyRoutes = require('./routes/geographyRoutes');
 const internalRoutes = require('./routes/internalRoutes');
 
 const app = express();
@@ -96,6 +97,7 @@ app.use(`${basePath}/departments`, departmentRoutes);
 app.use(`${basePath}/facility-services`, facilityServiceCatalogRoutes);
 app.use(`${basePath}/service-categories`, serviceCategoryRoutes);
 app.use(`${basePath}/services`, serviceRoutes);
+app.use(`${basePath}/geography`, geographyRoutes);
 app.use(`${basePath}/internal`, internalRoutes);
 
 // Same error envelope shape as identity-admin-service, so

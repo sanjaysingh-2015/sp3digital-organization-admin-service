@@ -91,6 +91,16 @@ const options = {
           "Categories used to classify facility services, scoped to an organization",
       },
       {
+        name: "Services",
+        description:
+          "Catalog of services an organization can offer, each under one service category",
+      },
+      {
+        name: "Geography",
+        description:
+          "Read-only country/state/district/sub-district/city/postal-code lookups for address dropdowns",
+      },
+      {
         name: "Internal",
         description:
           "Service-to-service routes callable only with the internal service token",
@@ -460,6 +470,78 @@ const options = {
               maxLength: 200,
             },
             description: { type: "string", nullable: true, maxLength: 500 },
+          },
+        },
+        Country: {
+          type: "object",
+          properties: {
+            countryId: { type: "integer" },
+            name: { type: "string" },
+            isoAlpha2: { type: "string" },
+            isoAlpha3: { type: "string" },
+            status: { type: "string" },
+          },
+        },
+        State: {
+          type: "object",
+          properties: {
+            stateId: { type: "integer" },
+            countryId: { type: "integer" },
+            name: { type: "string" },
+            status: { type: "string" },
+          },
+        },
+        District: {
+          type: "object",
+          properties: {
+            districtId: { type: "integer" },
+            stateId: { type: "integer" },
+            name: { type: "string" },
+            status: { type: "string" },
+          },
+        },
+        SubDistrict: {
+          type: "object",
+          properties: {
+            subDistrictId: { type: "integer" },
+            districtId: { type: "integer" },
+            name: { type: "string" },
+            status: { type: "string" },
+          },
+        },
+        City: {
+          type: "object",
+          properties: {
+            cityId: { type: "integer" },
+            subDistrictId: { type: "integer" },
+            name: { type: "string" },
+            status: { type: "string" },
+          },
+        },
+        PostalCode: {
+          type: "object",
+          properties: {
+            postalCodeId: { type: "integer" },
+            cityId: { type: "integer" },
+            code: { type: "string" },
+            status: { type: "string" },
+          },
+        },
+        PostalCodeSearchResult: {
+          type: "object",
+          properties: {
+            postalCodeId: { type: "integer" },
+            code: { type: "string" },
+            cityId: { type: "integer" },
+            cityName: { type: "string" },
+            subDistrictId: { type: "integer" },
+            subDistrictName: { type: "string" },
+            districtId: { type: "integer" },
+            districtName: { type: "string" },
+            stateId: { type: "integer" },
+            stateName: { type: "string" },
+            countryId: { type: "integer" },
+            countryName: { type: "string" },
           },
         },
       },
