@@ -7,6 +7,12 @@ const Department = require('./department.model')(sequelize, DataTypes);
 const FacilityService = require('./facilityService.model')(sequelize, DataTypes);
 const ServiceCategory = require('./serviceCategory.model')(sequelize, DataTypes);
 const Service = require('./service.model')(sequelize, DataTypes);
+const Country = require('./country.model')(sequelize, DataTypes);
+const State = require('./state.model')(sequelize, DataTypes);
+const District = require('./district.model')(sequelize, DataTypes);
+const SubDistrict = require('./subDistrict.model')(sequelize, DataTypes);
+const City = require('./city.model')(sequelize, DataTypes);
+const PostalCode = require('./postalCode.model')(sequelize, DataTypes);
 
 // --- Associations ---
 Organization.hasMany(Organization, { as: 'children', foreignKey: 'parentOrganizationId' });
@@ -38,6 +44,28 @@ Service.belongsTo(ServiceCategory, { foreignKey: 'serviceCategoryId' });
 Service.hasMany(FacilityService, { foreignKey: 'serviceId' })
 FacilityService.belongsTo(Service, { foreignKey: 'serviceId' });
 
+// Geography master data — global reference chain, not tenant-scoped.
+// Country -> State -> District -> SubDistrict -> City -> PostalCode.
+// Facility doesn't FK into this yet (it still stores city/state/district
+// as free text); wiring that up is a separate, larger migration since it
+// means resolving every existing facility's free-text values against
+// this table, not something to do silently as a side effect of adding
+// the reference tables themselves.
+Country.hasMany(State, { foreignKey: 'countryId' });
+State.belongsTo(Country, { foreignKey: 'countryId' });
+
+State.hasMany(District, { foreignKey: 'stateId' });
+District.belongsTo(State, { foreignKey: 'stateId' });
+
+District.hasMany(SubDistrict, { foreignKey: 'districtId' });
+SubDistrict.belongsTo(District, { foreignKey: 'districtId' });
+
+SubDistrict.hasMany(City, { foreignKey: 'subDistrictId' });
+City.belongsTo(SubDistrict, { foreignKey: 'subDistrictId' });
+
+City.hasMany(PostalCode, { foreignKey: 'cityId' });
+PostalCode.belongsTo(City, { foreignKey: 'cityId' });
+
 module.exports = {
   sequelize,
   Organization,
@@ -45,5 +73,11 @@ module.exports = {
   Department,
   FacilityService,
   ServiceCategory,
-  Service
+  Service,
+  Country,
+  State,
+  District,
+  SubDistrict,
+  City,
+  PostalCode,
 };

@@ -1,0 +1,37 @@
+state_id,country_id,name
+1,104,Telangana
+2,104,Andhra Pradesh
+3,104,Pondicherry
+4,104,Assam
+5,104,Bihar
+6,104,Chattisgarh
+7,104,Delhi
+8,104,Gujarat
+9,104,Dadra and Nagar Haveli and Daman and Diu
+10,104,Haryana
+11,104,Himachal Pradesh
+12,104,Jammu and Kashmir
+13,104,Ladakh
+14,104,Jharkhand
+15,104,Karnataka
+16,104,Kerala
+17,104,Lakshadweep
+18,104,Madhya Pradesh
+19,104,Maharashtra
+20,104,Goa
+21,104,Manipur
+22,104,Mizoram
+23,104,Nagaland
+24,104,Tripura
+25,104,Arunachal Pradesh
+26,104,Meghalaya
+27,104,Odisha
+28,104,Chandigarh
+29,104,Punjab
+30,104,Rajasthan
+31,104,Tamil Nadu
+32,104,Uttar Pradesh
+33,104,Uttarakhand
+34,104,West Bengal
+35,104,Andaman & Nicobar Islands
+36,104,Sikkim

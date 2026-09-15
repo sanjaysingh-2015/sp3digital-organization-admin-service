@@ -1,0 +1,146 @@
+// Business logic for the Facility entity (routes: /facilities). Not to be
+// confused with facilityServiceCatalogService.js, which handles the
+// separate "FacilityService" entity behind /facility-services.
+const { Organization, Facility } = require('../models');
+const { toSequelizePage, buildEnvelope } = require('../utils/pagination');
+const { Op } = require('sequelize');
+
+function notFound(message = 'Facility not found') {
+  const error = new Error(message);
+  error.statusCode = 404;
+  error.code = 'FACILITY_NOT_FOUND';
+  error.expose = true;
+  return error;
+}
+
+async function assertOrganizationExists(organizationId, tenantUuid) {
+  const organization = await Organization.findOne({
+    where: { organization_id: organizationId, tenant_uuid: tenantUuid },
+  });
+  if (!organization) {
+    const error = new Error('Organization not found in this tenant');
+    error.statusCode = 404;
+    error.code = 'ORGANIZATION_NOT_FOUND';
+    error.expose = true;
+    throw error;
+  }
+}
+
+function toResponse(facility) {
+  if (!facility) return null;
+  const plain = facility.get ? facility.get({ plain: true }) : facility;
+  return {
+    facilityId: plain.facilityId,
+    facilityUuid: plain.facilityUuid,
+    tenantUuid: plain.tenantUuid,
+    organizationId: plain.organizationId,
+    facilityName: plain.facilityName,
+    facilityType: plain.facilityType,
+    addressLine1: plain.addressLine1,
+    addressLine2: plain.addressLine2,
+    city: plain.city,
+    stateName: plain.stateName,
+    districtName: plain.districtName,
+    postalCode: plain.postalCode,
+    country: plain.country,
+    latitude: plain.latitude !== null && plain.latitude !== undefined ? Number(plain.latitude) : null,
+    longitude: plain.longitude !== null && plain.longitude !== undefined ? Number(plain.longitude) : null,
+    phoneNumber: plain.phoneNumber,
+    email: plain.email,
+    status: plain.status,
+    createdOn: plain.createdOn,
+    modifiedOn: plain.modifiedOn,
+  };
+}
+
+class FacilityService {
+  async getList({ page, limit, search, status, facilityType, organizationId, tenantUuid }) {
+    const { limit: safeLimit, offset, page: safePage } = toSequelizePage({ page, limit });
+
+    const where = { tenant_uuid: tenantUuid };
+    if (status) where.status = status;
+    if (facilityType) where.facility_type = facilityType;
+    if (organizationId) where.organization_id = organizationId;
+    if (search) {
+      where[Op.or] = [
+        { facility_name: { [Op.like]: `%${search}%` } },
+        { city: { [Op.like]: `%${search}%` } },
+      ];
+    }
+
+    const result = await Facility.findAndCountAll({
+      where,
+      limit: safeLimit,
+      offset,
+      order: [['createdOn', 'DESC']],
+    });
+
+    return buildEnvelope(
+      { rows: result.rows.map(toResponse), count: result.count },
+      { page: safePage, limit: safeLimit },
+    );
+  }
+
+  async getDropdownList({ tenantUuid }) {
+    const rows = await Facility.findAll({
+      where: { tenant_uuid: tenantUuid, status: 'ACTIVE' },
+      order: [['facilityName', 'ASC']],
+    });
+    return { success: true, count: rows.length, data: rows.map(toResponse) };
+  }
+
+  async getById(facilityId, { tenantUuid }) {
+    const facility = await Facility.findOne({ where: { facility_id: facilityId, tenant_uuid: tenantUuid } });
+    if (!facility) throw notFound();
+    return toResponse(facility);
+  }
+
+  async create(payload, { tenantUuid, userId }) {
+    await assertOrganizationExists(payload.organizationId, tenantUuid);
+
+    const facility = await Facility.create({
+      tenantUuid,
+      organizationId: payload.organizationId,
+      facilityName: payload.facilityName,
+      facilityType: payload.facilityType || null,
+      addressLine1: payload.addressLine1 || null,
+      addressLine2: payload.addressLine2 || null,
+      city: payload.city || null,
+      stateName: payload.stateName || null,
+      districtName: payload.districtName || null,
+      postalCode: payload.postalCode || null,
+      country: payload.country || 'India',
+      latitude: payload.latitude ?? null,
+      longitude: payload.longitude ?? null,
+      phoneNumber: payload.phoneNumber || null,
+      email: payload.email || null,
+      status: 'ACTIVE',
+      createdBy: userId || null,
+      modifiedBy: userId || null,
+    });
+
+    return toResponse(facility);
+  }
+
+  async update(facilityId, patch, { tenantUuid, userId }) {
+    const facility = await Facility.findOne({ where: { facility_id: facilityId, tenant_uuid: tenantUuid } });
+    if (!facility) throw notFound();
+
+    if (patch.organizationId !== undefined) {
+      await assertOrganizationExists(patch.organizationId, tenantUuid);
+    }
+
+    await facility.update({ ...patch, modifiedBy: userId || null, modifiedOn: new Date() });
+    return toResponse(facility);
+  }
+
+  async updateStatus(facilityId, status, { tenantUuid, userId }) {
+    const facility = await Facility.findOne({ where: { facility_id: facilityId, tenant_uuid: tenantUuid } });
+    if (!facility) throw notFound();
+
+    await facility.update({ status, modifiedBy: userId || null, modifiedOn: new Date() });
+    return toResponse(facility);
+  }
+}
+
+module.exports = new FacilityService();
