@@ -21,16 +21,33 @@ const listQuerySchema = paginationQuerySchema({
   organizationType: Joi.string().valid(...ORGANIZATION_TYPES, '').optional(),
 });
 
+// Same shape/limits as facility.validation.js's addressFields -- the
+// address-picker component fills these in the same way for both entities.
+const addressFields = {
+  addressLine1: Joi.string().trim().max(250).allow(null, '').optional(),
+  addressLine2: Joi.string().trim().max(250).allow(null, '').optional(),
+  city: Joi.string().trim().max(100).allow(null, '').optional(),
+  subDistrictName: Joi.string().trim().max(100).allow(null, '').optional(),
+  districtName: Joi.string().trim().max(100).allow(null, '').optional(),
+  stateName: Joi.string().trim().max(100).allow(null, '').optional(),
+  postalCode: Joi.string().trim().max(20).allow(null, '').optional(),
+  country: Joi.string().trim().max(100).allow(null, '').optional(),
+  latitude: Joi.number().min(-90).max(90).allow(null).optional(),
+  longitude: Joi.number().min(-180).max(180).allow(null).optional(),
+};
+
 const createSchema = Joi.object({
   organizationName: Joi.string().trim().min(2).max(200).required(),
   organizationType: Joi.string().valid(...ORGANIZATION_TYPES).allow(null).optional(),
   parentOrganizationId: Joi.number().integer().positive().allow(null).optional(),
+  ...addressFields,
 });
 
 const updateSchema = Joi.object({
   organizationName: Joi.string().trim().min(2).max(200).optional(),
   organizationType: Joi.string().valid(...ORGANIZATION_TYPES).allow(null).optional(),
   parentOrganizationId: Joi.number().integer().positive().allow(null).optional(),
+  ...addressFields,
 }).min(1);
 
 const statusSchema = Joi.object({

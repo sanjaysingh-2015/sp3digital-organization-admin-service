@@ -51,6 +51,21 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         field: 'parent_organization_id',
       },
+      // Address -- plain free-text columns, same pattern as Facility (see
+      // facility.model.js): the geography tables (country/state/district/
+      // sub-district/city/postal-code) are only used as an assistive
+      // lookup (address-picker component) to fill these in, not FK'd
+      // into directly yet.
+      addressLine1: { type: DataTypes.STRING(250), allowNull: true, field: 'address_line1' },
+      addressLine2: { type: DataTypes.STRING(250), allowNull: true, field: 'address_line2' },
+      city: { type: DataTypes.STRING(100), allowNull: true, field: 'city' },
+      subDistrictName: { type: DataTypes.STRING(100), allowNull: true, field: 'sub_district_name' },
+      districtName: { type: DataTypes.STRING(100), allowNull: true, field: 'district_name' },
+      stateName: { type: DataTypes.STRING(100), allowNull: true, field: 'state_name' },
+      postalCode: { type: DataTypes.STRING(20), allowNull: true, field: 'postal_code' },
+      country: { type: DataTypes.STRING(100), allowNull: true, defaultValue: 'India', field: 'country' },
+      latitude: { type: DataTypes.DECIMAL(10, 7), allowNull: true, field: 'latitude' },
+      longitude: { type: DataTypes.DECIMAL(10, 7), allowNull: true, field: 'longitude' },
       status: {
         type: DataTypes.STRING(30),
         allowNull: false,
