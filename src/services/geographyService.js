@@ -91,10 +91,20 @@ class GeographyService {
   // pincode, auto-fill city/district/state" address entry, the opposite
   // direction from the cascading dropdowns above.
   async searchPostalCodes({ query, limit = 20 }) {
+    // req.query.limit arrives as a string ("20"), and unlike list
+    // endpoints that go through pagination.js's toSequelizePage() (which
+    // does this same Number() coercion), this one didn't -- so on MySQL,
+    // Sequelize inlined it as a quoted string literal, producing
+    // `LIMIT '20'`, which MySQL's parser rejects outright (ER_PARSE_ERROR).
+    // SQLite is more forgiving about this, which is why this passed
+    // testing there but broke on MySQL. Same fix pattern as
+    // toSequelizePage: coerce to a real number, with a safe fallback if
+    // the coercion fails.
+    const safeLimit = Math.min(Number(limit) || 20, 50);
     const rows = await PostalCode.findAll({
       where: { status: 'ACTIVE', code: { [Op.like]: `${query}%` } },
       order: [['code', 'ASC']],
-      limit,
+      limit: safeLimit,
       include: [
         {
           model: City,

@@ -430,4 +430,17 @@ test('geography endpoints cascade correctly and enforce required parent ids', as
   // unbounded LIKE scan.
   const tooShort = await call('GET', '/api/v1/organization-admin/geography/postal-codes/search?query=40', { token });
   assert.equal(tooShort.status, 400);
+
+  // Regression test: req.query values arrive as strings over real HTTP.
+  // limit was passed straight through to Sequelize's `limit` option
+  // without coercion, which MySQL's LIMIT clause rejects outright
+  // (`LIMIT '20'` is a syntax error there) even though SQLite silently
+  // tolerates it -- so this bug was invisible to every sqlite-based test
+  // here until it hit a real MySQL database. Call the service directly
+  // with a string limit (bypassing HTTP/validate entirely) to prove the
+  // coercion is defensive at the service layer, not just relying on
+  // validate() having already converted it.
+  const geographyService = require('../src/services/geographyService');
+  const stringLimitResult = await geographyService.searchPostalCodes({ query: '400050', limit: '20' });
+  assert.equal(stringLimitResult.success, true);
 });
