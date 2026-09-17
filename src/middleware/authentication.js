@@ -24,7 +24,7 @@ function getBearerToken(header) {
  * mismatch, since timingSafeEqual requires equal-length buffers.
  */
 function isInternalServiceToken(token) {
-  const expected = process.env.INTERNAL_SERVICE_TOKEN;
+  const expected = process.env.ORGANIZATION_SERVICE_INTERNAL_TOKEN;
   if (!expected || !token) return false;
   const a = Buffer.from(token);
   const b = Buffer.from(expected);

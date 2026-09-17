@@ -58,12 +58,12 @@ module.exports = (sequelize, DataTypes) => {
       // into directly yet.
       addressLine1: { type: DataTypes.STRING(250), allowNull: true, field: 'address_line1' },
       addressLine2: { type: DataTypes.STRING(250), allowNull: true, field: 'address_line2' },
-      city: { type: DataTypes.STRING(100), allowNull: true, field: 'city' },
-      subDistrictName: { type: DataTypes.STRING(100), allowNull: true, field: 'sub_district_name' },
-      districtName: { type: DataTypes.STRING(100), allowNull: true, field: 'district_name' },
-      stateName: { type: DataTypes.STRING(100), allowNull: true, field: 'state_name' },
-      postalCode: { type: DataTypes.STRING(20), allowNull: true, field: 'postal_code' },
-      country: { type: DataTypes.STRING(100), allowNull: true, defaultValue: 'India', field: 'country' },
+      cityId: { type: DataTypes.BIGINT, allowNull: true, field: 'city_id' },
+      subDistrictId: { type: DataTypes.BIGINT, allowNull: true, field: 'sub_district_id' },
+      districtId: { type: DataTypes.BIGINT, allowNull: true, field: 'district_id' },
+      stateId: { type: DataTypes.BIGINT, allowNull: true, field: 'state_id' },
+      postalCodeId: { type: DataTypes.BIGINT, allowNull: true, field: 'postal_code_id' },
+      countryId: { type: DataTypes.BIGINT, allowNull: true, defaultValue: 'India', field: 'country_id' },
       latitude: { type: DataTypes.DECIMAL(10, 7), allowNull: true, field: 'latitude' },
       longitude: { type: DataTypes.DECIMAL(10, 7), allowNull: true, field: 'longitude' },
       status: {

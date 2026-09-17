@@ -375,13 +375,23 @@ test('service create requires and persists serviceCategoryId', async () => {
 
 // ---------------------------------------------------------------------
 // Geography lookups — /geography/*. These are global reference data
-// (no tenant scoping), so any tenant's token can read them. Uses direct
-// fixture inserts rather than the full ~320k-row India seed, since the
-// point here is proving the cascade/validation behavior, not the data.
+// (no tenant scoping), but as of the /geography-authenticated-like-/internal
+// change, only the shared INTERNAL_SERVICE_TOKEN may call them now — a
+// regular end-user JWT is rejected, same boundary /internal/organizations
+// already enforced. Uses direct fixture inserts rather than the full
+// ~320k-row India seed, since the point here is proving the cascade/
+// validation behavior, not the data.
 // ---------------------------------------------------------------------
 
-test('geography endpoints cascade correctly and enforce required parent ids', async () => {
+test('geography endpoints reject a regular end-user JWT (internal-service-token only)', async () => {
   const token = tokenFor(TENANT_A);
+  const { status, json } = await call('GET', '/api/v1/organization-admin/geography/countries', { token });
+  assert.equal(status, 403);
+  assert.equal(json.error.code, 'INTERNAL_ONLY');
+});
+
+test('geography endpoints cascade correctly and enforce required parent ids', async () => {
+  const internalAuth = { token: process.env.INTERNAL_SERVICE_TOKEN, headers: { 'X-Tenant-Uuid': TENANT_A } };
   const db = require('../src/models');
 
   const country = await db.Country.create({ name: 'India', isoAlpha2: 'IN', isoAlpha3: 'IND', status: 'ACTIVE' });
@@ -394,7 +404,7 @@ test('geography endpoints cascade correctly and enforce required parent ids', as
   await db.PostalCode.create({ cityId: city.cityId, code: '400050', status: 'ACTIVE' });
 
   // Districts scoped to Maharashtra should NOT include Karnataka's.
-  const districts = await call('GET', `/api/v1/organization-admin/geography/districts?stateId=${stateA.stateId}`, { token });
+  const districts = await call('GET', `/api/v1/organization-admin/geography/districts?stateId=${stateA.stateId}`, internalAuth);
   assert.equal(districts.status, 200);
   assert.equal(districts.json.data.length, 1);
   assert.equal(districts.json.data[0].name, 'Mumbai');
@@ -402,24 +412,24 @@ test('geography endpoints cascade correctly and enforce required parent ids', as
   // The parent id is required below country/state level -- proves the
   // "select a State, only get that state's districts" dependency is
   // enforced by validation, not left to the caller to remember.
-  const missingParent = await call('GET', '/api/v1/organization-admin/geography/districts', { token });
+  const missingParent = await call('GET', '/api/v1/organization-admin/geography/districts', internalAuth);
   assert.equal(missingParent.status, 400);
   assert.equal(missingParent.json.error.code, 'VALIDATION_ERROR');
 
-  const subDistricts = await call('GET', `/api/v1/organization-admin/geography/sub-districts?districtId=${districtA.districtId}`, { token });
+  const subDistricts = await call('GET', `/api/v1/organization-admin/geography/sub-districts?districtId=${districtA.districtId}`, internalAuth);
   assert.equal(subDistricts.json.data.length, 1);
   assert.equal(subDistricts.json.data[0].name, 'Bandra');
 
-  const cities = await call('GET', `/api/v1/organization-admin/geography/cities?subDistrictId=${subDistrict.subDistrictId}`, { token });
+  const cities = await call('GET', `/api/v1/organization-admin/geography/cities?subDistrictId=${subDistrict.subDistrictId}`, internalAuth);
   assert.equal(cities.json.data.length, 1);
   assert.equal(cities.json.data[0].name, 'Bandra West');
 
-  const postalCodes = await call('GET', `/api/v1/organization-admin/geography/postal-codes?cityId=${city.cityId}`, { token });
+  const postalCodes = await call('GET', `/api/v1/organization-admin/geography/postal-codes?cityId=${city.cityId}`, internalAuth);
   assert.equal(postalCodes.json.data.length, 1);
   assert.equal(postalCodes.json.data[0].code, '400050');
 
   // Reverse lookup: pincode -> full resolved hierarchy in one call.
-  const search = await call('GET', '/api/v1/organization-admin/geography/postal-codes/search?query=400050', { token });
+  const search = await call('GET', '/api/v1/organization-admin/geography/postal-codes/search?query=400050', internalAuth);
   assert.equal(search.status, 200);
   assert.equal(search.json.data.length, 1);
   assert.equal(search.json.data[0].cityName, 'Bandra West');
@@ -428,7 +438,7 @@ test('geography endpoints cascade correctly and enforce required parent ids', as
 
   // Query below the minimum length should be a validation error, not an
   // unbounded LIKE scan.
-  const tooShort = await call('GET', '/api/v1/organization-admin/geography/postal-codes/search?query=40', { token });
+  const tooShort = await call('GET', '/api/v1/organization-admin/geography/postal-codes/search?query=40', internalAuth);
   assert.equal(tooShort.status, 400);
 
   // Regression test: req.query values arrive as strings over real HTTP.

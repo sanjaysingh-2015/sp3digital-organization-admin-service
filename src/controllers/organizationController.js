@@ -61,10 +61,21 @@ class OrganizationController {
    */
   internalCreate = async (req, res, next) => {
     try {
+      console.log("Request ==> ", req.body);
       const organization = await organizationService.create({
         organizationName: req.body.organizationName,
         organizationType: req.body.organizationType,
         parentOrganizationId: req.body.parentOrganizationId,
+        addressLine1: req.body.addressLine1,
+        addressLine2: req.body.addressLine2,
+        cityId: req.body.cityId,
+        subDistrictId: req.body.subDistrictId,
+        districtId: req.body.districtId,
+        stateId: req.body.stateId,
+        postalCodeId: req.body.postalCodeId,
+        countryId: req.body.countryId,
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
         tenantUuid: req.auth.tenantUuid || req.body.tenantUuid,
         userId: req.body.userId,
       });

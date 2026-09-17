@@ -26,12 +26,12 @@ const listQuerySchema = paginationQuerySchema({
 const addressFields = {
   addressLine1: Joi.string().trim().max(250).allow(null, '').optional(),
   addressLine2: Joi.string().trim().max(250).allow(null, '').optional(),
-  city: Joi.string().trim().max(100).allow(null, '').optional(),
-  subDistrictName: Joi.string().trim().max(100).allow(null, '').optional(),
-  districtName: Joi.string().trim().max(100).allow(null, '').optional(),
-  stateName: Joi.string().trim().max(100).allow(null, '').optional(),
-  postalCode: Joi.string().trim().max(20).allow(null, '').optional(),
-  country: Joi.string().trim().max(100).allow(null, '').optional(),
+  cityId: Joi.number().allow(null).optional(),
+  subDistrictId: Joi.number().allow(null).optional(),
+  districtId: Joi.number().allow(null).optional(),
+  stateId: Joi.number().allow(null).optional(),
+  postalCodeId: Joi.number().allow(null).optional(),
+  countryId: Joi.number().allow(null).optional(),
   latitude: Joi.number().min(-90).max(90).allow(null).optional(),
   longitude: Joi.number().min(-180).max(180).allow(null).optional(),
 };
@@ -64,6 +64,7 @@ const internalCreateSchema = Joi.object({
   organizationType: Joi.string().valid(...ORGANIZATION_TYPES).allow(null).optional(),
   parentOrganizationId: Joi.number().integer().positive().allow(null).optional(),
   userId: Joi.number().integer().positive().allow(null).optional(),
+  ...addressFields,
 });
 
 module.exports = {

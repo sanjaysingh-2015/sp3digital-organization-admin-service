@@ -18,7 +18,7 @@ const listStatesQuerySchema = Joi.object({
 });
 
 const listDistrictsQuerySchema = Joi.object({
-  stateId: Joi.number().integer().positive().required(),
+  stateId: Joi.number().integer().positive().optional(),
   search: Joi.string().trim().max(100).allow('').optional(),
 });
 
