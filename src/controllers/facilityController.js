@@ -40,6 +40,7 @@ class FacilityController {
 
   create = async (req, res, next) => {
     try {
+      console.log("Request Body ==> ",req.body);
       const facility = await facilityService.create(req.body, {
         tenantUuid: req.auth.tenantUuid,
         userId: req.auth.userId,

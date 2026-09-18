@@ -3,6 +3,12 @@ module.exports = (sequelize, DataTypes) => {
     'Facility',
     {
       facilityId: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true, field: 'facility_id' },
+      facilityCode: {
+        type: DataTypes.STRING(40),
+        allowNull: false,
+        unique: true,
+        field: 'facility_code',
+      },
       facilityUuid: {
         type: DataTypes.UUID,
         allowNull: false,

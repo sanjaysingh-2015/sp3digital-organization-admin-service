@@ -100,23 +100,6 @@ class OrganizationService {
     tenantUuid,
     userId,
   }) {
-    console.log("Params ==> ", {
-    organizationName,
-    organizationType,
-    parentOrganizationId,
-    addressLine1,
-    addressLine2,
-    cityId,
-    subDistrictId,
-    districtId,
-    stateId,
-    postalCodeId,
-    countryId,
-    latitude,
-    longitude,
-    tenantUuid,
-    userId,
-  });
     if (parentOrganizationId) {
       const parent = await Organization.findOne({
         where: { organization_id: parentOrganizationId, tenant_uuid: tenantUuid },

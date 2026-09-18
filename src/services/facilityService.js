@@ -2,8 +2,10 @@
 // confused with facilityServiceCatalogService.js, which handles the
 // separate "FacilityService" entity behind /facility-services.
 const { Organization, Facility } = require('../models');
+const CodeUtil = require('../utils/code.util');
 const { toSequelizePage, buildEnvelope } = require('../utils/pagination');
 const { Op } = require('sequelize');
+const UuidUtils = require('../utils/uuid.util');
 
 function notFound(message = 'Facility not found') {
   const error = new Error(message);
@@ -38,12 +40,12 @@ function toResponse(facility) {
     facilityType: plain.facilityType,
     addressLine1: plain.addressLine1,
     addressLine2: plain.addressLine2,
-    city: plain.city,
-    subDistrictName: plain.subDistrictName,
-    districtName: plain.districtName,
-    stateName: plain.stateName,
-    postalCode: plain.postalCode,
-    country: plain.country,
+    cityId: plain.cityId,
+    subDistrictId: plain.subDistrictId,
+    districtId: plain.districtId,
+    stateId: plain.stateId,
+    postalCodeId: plain.postalCodeId,
+    countryId: plain.countryId,
     latitude: plain.latitude !== null && plain.latitude !== undefined ? Number(plain.latitude) : null,
     longitude: plain.longitude !== null && plain.longitude !== undefined ? Number(plain.longitude) : null,
     phoneNumber: plain.phoneNumber,
@@ -98,20 +100,44 @@ class FacilityService {
 
   async create(payload, { tenantUuid, userId }) {
     await assertOrganizationExists(payload.organizationId, tenantUuid);
-
-    const facility = await Facility.create({
+console.log("payload ==> ", {
       tenantUuid,
       organizationId: payload.organizationId,
+      facilityCode: CodeUtil.generateCode("FACILITIES", payload.facilityName),
+      facilityUuid: UuidUtils.generate(),
       facilityName: payload.facilityName,
       facilityType: payload.facilityType || null,
       addressLine1: payload.addressLine1 || null,
       addressLine2: payload.addressLine2 || null,
-      city: payload.city || null,
-      subDistrictName: payload.subDistrictName || null,
-      districtName: payload.districtName || null,
-      stateName: payload.stateName || null,
-      postalCode: payload.postalCode || null,
-      country: payload.country || 'India',
+      cityId: payload.cityId || null,
+      subDistrictId: payload.subDistrictId || null,
+      districtId: payload.districtId || null,
+      stateId: payload.stateId || null,
+      postalCodeId: payload.postalCodeId || null,
+      countryId: payload.countryId || 104,
+      latitude: payload.latitude ?? null,
+      longitude: payload.longitude ?? null,
+      phoneNumber: payload.phoneNumber || null,
+      email: payload.email || null,
+      status: 'ACTIVE',
+      createdBy: userId || null,
+      modifiedBy: userId || null,
+    });
+    const facility = await Facility.create({
+      tenantUuid,
+      organizationId: payload.organizationId,
+      facilityCode: CodeUtil.generateCode("FACILITIES", payload.facilityName),
+      facilityUuid: UuidUtils.generate(),
+      facilityName: payload.facilityName,
+      facilityType: payload.facilityType || null,
+      addressLine1: payload.addressLine1 || null,
+      addressLine2: payload.addressLine2 || null,
+      cityId: payload.cityId || null,
+      subDistrictId: payload.subDistrictId || null,
+      districtId: payload.districtId || null,
+      stateId: payload.stateId || null,
+      postalCodeId: payload.postalCodeId || null,
+      countryId: payload.countryId || 104,
       latitude: payload.latitude ?? null,
       longitude: payload.longitude ?? null,
       phoneNumber: payload.phoneNumber || null,
