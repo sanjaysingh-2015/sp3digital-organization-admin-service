@@ -46,11 +46,6 @@ FacilityService.belongsTo(Service, { foreignKey: 'serviceId' });
 
 // Geography master data — global reference chain, not tenant-scoped.
 // Country -> State -> District -> SubDistrict -> City -> PostalCode.
-// Facility doesn't FK into this yet (it still stores city/state/district
-// as free text); wiring that up is a separate, larger migration since it
-// means resolving every existing facility's free-text values against
-// this table, not something to do silently as a side effect of adding
-// the reference tables themselves.
 Country.hasMany(State, { foreignKey: 'countryId' });
 State.belongsTo(Country, { foreignKey: 'countryId' });
 
@@ -65,6 +60,28 @@ City.belongsTo(SubDistrict, { foreignKey: 'subDistrictId' });
 
 City.hasMany(PostalCode, { foreignKey: 'cityId' });
 PostalCode.belongsTo(City, { foreignKey: 'cityId' });
+
+// Organization/Facility -> geography lookups, used only to resolve the
+// human-readable name alongside each *_id in API responses (see
+// GEO_INCLUDE in organizationService.js/facilityService.js). Aliased so
+// both models can carry all six without name collisions.
+//
+// constraints: false is deliberate: these ids are stored loosely (nullable,
+// no enforced FK) because the geography tables are optional reference data
+// seeded separately (scripts/seed-india-geo.js) and aren't guaranteed to be
+// populated — organizations.model.js/facility.model.js even default
+// countryId to 104 without knowing whether a country with that id exists.
+// A real FK constraint here would make every create/update depend on
+// geography data being seeded first, which is exactly what this app was
+// built to not require.
+for (const Model of [Organization, Facility]) {
+  Model.belongsTo(Country, { as: 'country', foreignKey: 'countryId', constraints: false });
+  Model.belongsTo(State, { as: 'state', foreignKey: 'stateId', constraints: false });
+  Model.belongsTo(District, { as: 'district', foreignKey: 'districtId', constraints: false });
+  Model.belongsTo(SubDistrict, { as: 'subDistrict', foreignKey: 'subDistrictId', constraints: false });
+  Model.belongsTo(City, { as: 'city', foreignKey: 'cityId', constraints: false });
+  Model.belongsTo(PostalCode, { as: 'postalCode', foreignKey: 'postalCodeId', constraints: false });
+}
 
 module.exports = {
   sequelize,

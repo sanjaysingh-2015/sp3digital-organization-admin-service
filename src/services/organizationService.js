@@ -1,4 +1,4 @@
-const { Organization } = require('../models');
+const { Organization, Country, State, District, SubDistrict, City, PostalCode } = require('../models');
 const { toSequelizePage, buildEnvelope } = require('../utils/pagination');
 const UuidUtil = require("../utils/uuid.util");
 const CodeUtil = require("../utils/code.util");
@@ -11,6 +11,19 @@ function notFound(message = 'Organization not found') {
   error.expose = true;
   return error;
 }
+
+// Resolves each geo id to its display name, for the response only — never
+// persisted, never accepted on input. Attribute lists are kept narrow
+// (id + the one display field) since this is purely for rendering, not
+// for exposing the full geography rows.
+const GEO_INCLUDE = [
+  { model: Country, as: 'country', attributes: ['countryId', 'name'] },
+  { model: State, as: 'state', attributes: ['stateId', 'name'] },
+  { model: District, as: 'district', attributes: ['districtId', 'name'] },
+  { model: SubDistrict, as: 'subDistrict', attributes: ['subDistrictId', 'name'] },
+  { model: City, as: 'city', attributes: ['cityId', 'name'] },
+  { model: PostalCode, as: 'postalCode', attributes: ['postalCodeId', 'code'] },
+];
 
 function toResponse(organization) {
   if (!organization) return null;
@@ -26,11 +39,17 @@ function toResponse(organization) {
     addressLine1: plain.addressLine1,
     addressLine2: plain.addressLine2,
     cityId: plain.cityId,
+    cityName: plain.city?.name ?? null,
     subDistrictId: plain.subDistrictId,
+    subDistrictName: plain.subDistrict?.name ?? null,
     districtId: plain.districtId,
+    districtName: plain.district?.name ?? null,
     stateId: plain.stateId,
+    stateName: plain.state?.name ?? null,
     postalCodeId: plain.postalCodeId,
+    postalCode: plain.postalCode?.code ?? null,
     countryId: plain.countryId,
+    countryName: plain.country?.name ?? null,
     latitude: plain.latitude !== null && plain.latitude !== undefined ? Number(plain.latitude) : null,
     longitude: plain.longitude !== null && plain.longitude !== undefined ? Number(plain.longitude) : null,
     status: plain.status,
@@ -59,6 +78,7 @@ class OrganizationService {
       limit: safeLimit,
       offset,
       order: [['createdOn', 'DESC']],
+      include: GEO_INCLUDE,
     });
 
     return buildEnvelope(
@@ -79,6 +99,7 @@ class OrganizationService {
   async getById(organizationId, { tenantUuid }) {
     const organization = await Organization.findOne({
       where: { organization_id: organizationId, tenant_uuid: tenantUuid },
+      include: GEO_INCLUDE,
     });
     if (!organization) throw notFound();
     return toResponse(organization);
@@ -130,6 +151,10 @@ class OrganizationService {
       modifiedBy: userId || null,
     });
 
+    // Reload with the geo associations so the response carries
+    // cityName/stateName/etc. alongside the ids the client just sent —
+    // Organization.create()'s returned instance has no associations loaded.
+    await organization.reload({ include: GEO_INCLUDE });
     return toResponse(organization);
   }
 
@@ -171,6 +196,7 @@ class OrganizationService {
       modifiedOn: new Date(),
     });
 
+    await organization.reload({ include: GEO_INCLUDE });
     return toResponse(organization);
   }
 
@@ -181,6 +207,7 @@ class OrganizationService {
     if (!organization) throw notFound();
 
     await organization.update({ status, modifiedBy: userId || null, modifiedOn: new Date() });
+    await organization.reload({ include: GEO_INCLUDE });
     return toResponse(organization);
   }
 

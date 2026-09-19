@@ -1,7 +1,7 @@
 // Business logic for the Facility entity (routes: /facilities). Not to be
 // confused with facilityServiceCatalogService.js, which handles the
 // separate "FacilityService" entity behind /facility-services.
-const { Organization, Facility } = require('../models');
+const { Organization, Facility, Country, State, District, SubDistrict, City, PostalCode } = require('../models');
 const CodeUtil = require('../utils/code.util');
 const { toSequelizePage, buildEnvelope } = require('../utils/pagination');
 const { Op } = require('sequelize');
@@ -28,6 +28,19 @@ async function assertOrganizationExists(organizationId, tenantUuid) {
   }
 }
 
+// Resolves each geo id to its display name, for the response only — never
+// persisted, never accepted on input. Same shape as organizationService.js's
+// GEO_INCLUDE — kept as a separate copy since the two services don't share
+// a module today, not because the definition differs.
+const GEO_INCLUDE = [
+  { model: Country, as: 'country', attributes: ['countryId', 'name'] },
+  { model: State, as: 'state', attributes: ['stateId', 'name'] },
+  { model: District, as: 'district', attributes: ['districtId', 'name'] },
+  { model: SubDistrict, as: 'subDistrict', attributes: ['subDistrictId', 'name'] },
+  { model: City, as: 'city', attributes: ['cityId', 'name'] },
+  { model: PostalCode, as: 'postalCode', attributes: ['postalCodeId', 'code'] },
+];
+
 function toResponse(facility) {
   if (!facility) return null;
   const plain = facility.get ? facility.get({ plain: true }) : facility;
@@ -41,11 +54,17 @@ function toResponse(facility) {
     addressLine1: plain.addressLine1,
     addressLine2: plain.addressLine2,
     cityId: plain.cityId,
+    cityName: plain.city?.name ?? null,
     subDistrictId: plain.subDistrictId,
+    subDistrictName: plain.subDistrict?.name ?? null,
     districtId: plain.districtId,
+    districtName: plain.district?.name ?? null,
     stateId: plain.stateId,
+    stateName: plain.state?.name ?? null,
     postalCodeId: plain.postalCodeId,
+    postalCode: plain.postalCode?.code ?? null,
     countryId: plain.countryId,
+    countryName: plain.country?.name ?? null,
     latitude: plain.latitude !== null && plain.latitude !== undefined ? Number(plain.latitude) : null,
     longitude: plain.longitude !== null && plain.longitude !== undefined ? Number(plain.longitude) : null,
     phoneNumber: plain.phoneNumber,
@@ -76,6 +95,7 @@ class FacilityService {
       limit: safeLimit,
       offset,
       order: [['createdOn', 'DESC']],
+      include: GEO_INCLUDE,
     });
 
     return buildEnvelope(
@@ -93,7 +113,10 @@ class FacilityService {
   }
 
   async getById(facilityId, { tenantUuid }) {
-    const facility = await Facility.findOne({ where: { facility_id: facilityId, tenant_uuid: tenantUuid } });
+    const facility = await Facility.findOne({
+      where: { facility_id: facilityId, tenant_uuid: tenantUuid },
+      include: GEO_INCLUDE,
+    });
     if (!facility) throw notFound();
     return toResponse(facility);
   }
@@ -124,6 +147,10 @@ class FacilityService {
       modifiedBy: userId || null,
     });
 
+    // Reload with the geo associations so the response carries
+    // cityName/stateName/etc. alongside the ids the client just sent —
+    // Facility.create()'s returned instance has no associations loaded.
+    await facility.reload({ include: GEO_INCLUDE });
     return toResponse(facility);
   }
 
@@ -136,6 +163,7 @@ class FacilityService {
     }
 
     await facility.update({ ...patch, modifiedBy: userId || null, modifiedOn: new Date() });
+    await facility.reload({ include: GEO_INCLUDE });
     return toResponse(facility);
   }
 
@@ -144,6 +172,7 @@ class FacilityService {
     if (!facility) throw notFound();
 
     await facility.update({ status, modifiedBy: userId || null, modifiedOn: new Date() });
+    await facility.reload({ include: GEO_INCLUDE });
     return toResponse(facility);
   }
 }
