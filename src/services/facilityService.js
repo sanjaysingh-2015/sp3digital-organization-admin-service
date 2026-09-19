@@ -65,10 +65,10 @@ class FacilityService {
     if (facilityType) where.facility_type = facilityType;
     if (organizationId) where.organization_id = organizationId;
     if (search) {
-      where[Op.or] = [
-        { facility_name: { [Op.like]: `%${search}%` } },
-        { city: { [Op.like]: `%${search}%` } },
-      ];
+      // `city` used to be a free-text column and was searchable via LIKE.
+      // It is now a FK id (city_id) into the geography tables, so it can
+      // no longer be matched against a free-text search term.
+      where.facility_name = { [Op.like]: `%${search}%` };
     }
 
     const result = await Facility.findAndCountAll({
@@ -100,29 +100,6 @@ class FacilityService {
 
   async create(payload, { tenantUuid, userId }) {
     await assertOrganizationExists(payload.organizationId, tenantUuid);
-console.log("payload ==> ", {
-      tenantUuid,
-      organizationId: payload.organizationId,
-      facilityCode: CodeUtil.generateCode("FACILITIES", payload.facilityName),
-      facilityUuid: UuidUtils.generate(),
-      facilityName: payload.facilityName,
-      facilityType: payload.facilityType || null,
-      addressLine1: payload.addressLine1 || null,
-      addressLine2: payload.addressLine2 || null,
-      cityId: payload.cityId || null,
-      subDistrictId: payload.subDistrictId || null,
-      districtId: payload.districtId || null,
-      stateId: payload.stateId || null,
-      postalCodeId: payload.postalCodeId || null,
-      countryId: payload.countryId || 104,
-      latitude: payload.latitude ?? null,
-      longitude: payload.longitude ?? null,
-      phoneNumber: payload.phoneNumber || null,
-      email: payload.email || null,
-      status: 'ACTIVE',
-      createdBy: userId || null,
-      modifiedBy: userId || null,
-    });
     const facility = await Facility.create({
       tenantUuid,
       organizationId: payload.organizationId,
