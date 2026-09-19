@@ -1,17 +1,43 @@
-const organizationService = require('../services/organizationService');
+const organizationService = require("../services/organizationService");
 
 class OrganizationController {
   getList = async (req, res, next) => {
     try {
+      const permissions = req.auth.claims.permissions || [];
+
+      const hasSuperAdminPermission = permissions.includes("ALL_PERMISSIONS");
+
+      const hasReadPermission = permissions.includes(
+        "ORGANIZATION-ADMIN:ORGANIZATIONS:READ",
+      );
+
       const { page, limit, search, status, organizationType } = req.query;
-      const result = await organizationService.getList({
-        page,
-        limit,
-        search,
-        status,
-        organizationType,
-        tenantUuid: req.auth.tenantUuid,
-      });
+      let result = [];
+      if (hasSuperAdminPermission) {
+        result = await organizationService.getList({
+          page,
+          limit,
+          search,
+          status,
+          organizationType,
+          tenantUuid: null
+        });
+      } else {
+        if (hasReadPermission) {
+          result = await organizationService.getList({
+            page,
+            limit,
+            search,
+            status,
+            organizationType,
+            tenantUuid: req.auth.tenantUuid,
+          });
+        } else {
+          return res.status(403).json({
+            message: "You do not have permission to read organizations.",
+          });
+        }
+      }
       return res.status(200).json(result);
     } catch (error) {
       return next(error);
@@ -21,7 +47,9 @@ class OrganizationController {
   // For dropdowns (parent-org picker, facilities' org picker).
   getDropdownList = async (req, res, next) => {
     try {
-      const result = await organizationService.getDropdownList({ tenantUuid: req.auth.tenantUuid });
+      const result = await organizationService.getDropdownList({
+        tenantUuid: req.auth.tenantUuid,
+      });
       return res.status(200).json(result);
     } catch (error) {
       return next(error);
@@ -30,9 +58,12 @@ class OrganizationController {
 
   getById = async (req, res, next) => {
     try {
-      const organization = await organizationService.getById(req.params.organizationId, {
-        tenantUuid: req.auth.tenantUuid,
-      });
+      const organization = await organizationService.getById(
+        req.params.organizationId,
+        {
+          tenantUuid: req.auth.tenantUuid,
+        },
+      );
       return res.status(200).json(organization);
     } catch (error) {
       return next(error);
@@ -87,10 +118,14 @@ class OrganizationController {
 
   update = async (req, res, next) => {
     try {
-      const organization = await organizationService.update(req.params.organizationId, req.body, {
-        tenantUuid: req.auth.tenantUuid,
-        userId: req.auth.userId,
-      });
+      const organization = await organizationService.update(
+        req.params.organizationId,
+        req.body,
+        {
+          tenantUuid: req.auth.tenantUuid,
+          userId: req.auth.userId,
+        },
+      );
       return res.status(200).json(organization);
     } catch (error) {
       return next(error);
@@ -99,10 +134,14 @@ class OrganizationController {
 
   updateStatus = async (req, res, next) => {
     try {
-      const organization = await organizationService.updateStatus(req.params.organizationId, req.body.status, {
-        tenantUuid: req.auth.tenantUuid,
-        userId: req.auth.userId,
-      });
+      const organization = await organizationService.updateStatus(
+        req.params.organizationId,
+        req.body.status,
+        {
+          tenantUuid: req.auth.tenantUuid,
+          userId: req.auth.userId,
+        },
+      );
       return res.status(200).json(organization);
     } catch (error) {
       return next(error);
@@ -112,9 +151,12 @@ class OrganizationController {
   /** Hard delete — see organizationService.hardDelete for who's allowed to call this and why. */
   hardDelete = async (req, res, next) => {
     try {
-      const result = await organizationService.hardDelete(req.params.organizationId, {
-        tenantUuid: req.auth.tenantUuid,
-      });
+      const result = await organizationService.hardDelete(
+        req.params.organizationId,
+        {
+          tenantUuid: req.auth.tenantUuid,
+        },
+      );
       return res.status(200).json(result);
     } catch (error) {
       return next(error);

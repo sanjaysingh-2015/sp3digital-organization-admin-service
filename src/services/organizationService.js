@@ -43,7 +43,8 @@ class OrganizationService {
   async getList({ page, limit, search, status, organizationType, tenantUuid }) {
     const { limit: safeLimit, offset, page: safePage } = toSequelizePage({ page, limit });
 
-    const where = { tenant_uuid: tenantUuid };
+    let where = {};
+    if(tenantUuid) where.tenantUuid = tenantUuid;
     if (status) where.status = status;
     if (organizationType) where.organization_type = organizationType;
     if (search) {
